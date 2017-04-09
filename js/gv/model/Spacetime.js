@@ -8,15 +8,12 @@
 */
 gv.Spacetime = new JS.Class('Spacetime', myt.Eventable, {
     // Life Cycle //////////////////////////////////////////////////////////////
-    init: function(parent, attrs) {
+    init: function(attrs) {
         this._mobs = [];
         this._mobsById = {};
         
-        this.callSuper(parent, attrs);
+        this.callSuper(attrs);
     },
-    
-    
-    // Accessors ///////////////////////////////////////////////////////////////
     
     
     // Methods /////////////////////////////////////////////////////////////////
@@ -40,6 +37,20 @@ gv.Spacetime = new JS.Class('Spacetime', myt.Eventable, {
             mob = mobs[--i];
             if (mob.label === label) return mob;
         }
+    },
+    
+    getNearestMob: function(pos) {
+        var mobs = this._mobs, i = mobs.length, mob,
+            distance, nearestDistance, nearestMob;
+        while (i) {
+            mob = mobs[--i];
+            distance = mob.measureDistanceSquared(pos);
+            if (distance < nearestDistance || !nearestMob) {
+                nearestDistance = distance;
+                nearestMob = mob;
+            }
+        }
+        return nearestMob
     },
     
     hasMob: function(mob) {

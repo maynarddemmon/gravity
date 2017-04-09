@@ -70,15 +70,17 @@ gv = (function() {
         targetMap:null,
         
         HALO_RADIUS_BY_TYPE: {
-            star:3,
-            planet:100,
-            moon:20
+            star:50,
+            planet:500,
+            moon:750,
+            asteroid:2500
         },
         
         MOB_COLOR_BY_TYPE: {
             star:'#ffff00',
             planet:'#0099ff',
-            moon:'#cccccc'
+            moon:'#ffcccc',
+            asteroid:'#cccccc'
         },
         
         circleIntersectsCircle: function(ax, ay, ar, bx, by, br) {
@@ -88,6 +90,12 @@ gv = (function() {
         circleContainsCircle: function(ax, ay, ar, bx, by, br) {
             return (ar >= br) && (myt.Geometry.measureDistance(ax, ay, bx, by, true) <= (ar - br) * (ar - br));
         },
+        
+        /** Converts a radius (in meters) and orbit period (in days) 
+            to meters/second. */
+        radiusAndPeriodToSpeed: function(r, p) {
+            return (2 * Math.PI * r) / (p * 3600 * 24);
+        }
     };
 })();
 

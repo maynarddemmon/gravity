@@ -8,15 +8,27 @@
 */
 gv.Mob = new JS.Class('Mob', myt.Eventable, {
     // Life Cycle //////////////////////////////////////////////////////////////
-    init: function(parent, attrs) {
+    init: function(attrs) {
         var self = this;
         
         self._id = myt.generateGuid();
         self.dvx = self.dvy = 0;
         
-        self.callSuper(parent, attrs);
+        var mapCenter = attrs.mapCenter,
+            shipMapCenter = attrs.shipMapCenter,
+            targetMapCenter = attrs.targetMapCenter;
+        delete attrs.mapCenter;
+        delete attrs.shipMapCenter;
+        delete attrs.targetMapCenter;
+        
+        self.callSuper(attrs);
         
         self._calculateVolumeAndRadius();
+        
+        // Notify center status late
+        if (mapCenter) self.setMapCenter(mapCenter);
+        if (shipMapCenter) self.setShipMapCenter(shipMapCenter);
+        if (targetMapCenter) self.setTargetMapCenter(targetMapCenter);
     },
     
     
@@ -116,6 +128,7 @@ gv.Mob = new JS.Class('Mob', myt.Eventable, {
             self.destroy();
             mob.destroy();
             
+console.log('COLLISION!!!');
             return newMob;
         }
     },

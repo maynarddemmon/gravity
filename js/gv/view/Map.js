@@ -21,16 +21,23 @@ gv.Map = new JS.Class('Map', myt.View, {
         self._maxScaleExponent = 26;
         self.distanceScale = 1;
         
+        attrs.pointerEvents = 'none';
         self.callSuper(parent, attrs);
         
-        var mobsLayer = self.mobsLayer = new M.Canvas(self, {
+        var mobsContainer = self.mobsContainer = new M.View(self);
+        var mobsLayer = self.mobsLayer = new M.Canvas(mobsContainer, {
             border:[1, 'solid', '#009900'],
             bgColor:'#000000',
-            overflow:'hidden'
+            pointerEvents:'auto'
         });
         self.attachToDom(mobsLayer, '_handleWheel', 'wheel');
+        self.attachToDom(mobsLayer, '_handleMove', 'mousemove');
+        self.attachToDom(mobsLayer, '_handleClick', 'click');
         self.scaleLabel = new M.Text(mobsLayer, {
             align:'center', y:5, fontSize:'10px', textColor:'#00ff00'
+        });
+        self.centerMobLabel = new M.Text(mobsLayer, {
+            align:'center', y:15, fontSize:'10px', textColor:'#00ff00'
         });
         
         self.hideBtn = new GV.CircleButton(self, {
@@ -39,7 +46,8 @@ gv.Map = new JS.Class('Map', myt.View, {
             tooltip:'Hide this map.',
             align:attrs.align, alignOffset:5,
             valign:attrs.valign, valignOffset:5,
-            disabled:attrs.expanded || attrs.closed
+            disabled:attrs.expanded || attrs.closed,
+            pointerEvents:'auto'
         }, [{doActivated: function() {self.setClosed(!self.closed);}}]);
         
         self.resizeBtn = new GV.CircleButton(self, {
@@ -48,7 +56,8 @@ gv.Map = new JS.Class('Map', myt.View, {
             tooltip:'Expand this map.',
             align:attrs.align, alignOffset:24,
             valign:attrs.valign, valignOffset:5,
-            disabled:attrs.expanded
+            disabled:attrs.expanded,
+            pointerEvents:'auto'
         }, [{
             doActivated: function() {
                 if (self.closed) {
@@ -62,6 +71,7 @@ gv.Map = new JS.Class('Map', myt.View, {
         self.attachTo(M.global.idle, '_update', 'idle');
         
         self._updateDistanceScale();
+        self._updateCenterMobLabel();
     },
     
     
@@ -89,18 +99,79 @@ gv.Map = new JS.Class('Map', myt.View, {
         }
     },
     
-    setCenterMob: function(v) {this._centerMob = v;},
+    setCenterMob: function(v) {
+        if (v !== this._centerMob) {
+            this._centerMob = v;
+            
+            if (this.inited) {
+                this._updateCenterMobLabel();
+                
+                // Force a redraw if spacetime is not updating
+                if (!gv.spacetime.isRunning()) this._redraw();
+            }
+        }
+    },
     getCenterMob: function() {return this._centerMob;},
     
-    setDistanceScale: function(v) {this.distanceScale = v;},
+    setHighlightMob: function(v) {
+        this._highlightMob = v;
+    },
+    
+    setDistanceScale: function(v) {
+        if (v !== this.distanceScale) {
+            this.distanceScale = v;
+            
+            // Force a redraw if spacetime is not updating
+            if (this.inited && !gv.spacetime.isRunning()) this._redraw();
+        }
+    },
     
     setWidth:function(v, supressEvent) {
+        v = Math.round(v);
+        if (v % 2 === 1) v += 1;
+        
         this.callSuper(v, supressEvent);
         if (this.inited) this._updateWidth();
     },
     
     
     // Methods /////////////////////////////////////////////////////////////////
+    /** @private */
+    _updateCenterMobLabel: function() {
+        var mob = this.getCenterMob(),
+            txt = '';
+        if (mob) txt = mob.label;
+        this.centerMobLabel.setText(txt);
+    },
+    
+    /** @private */
+    _handleClick: function(event) {
+        if (this._highlightMob) {
+            this.setCenterMob(this._highlightMob);
+            this.setHighlightMob();
+        }
+    },
+    
+    /** @private */
+    _handleMove: function(event) {
+        var pos = myt.MouseObservable.getMouseFromEventRelativeToView(event, this.mobsLayer),
+            nearestMob = gv.spacetime.getNearestMob(this._convertPixelsToMeters(pos));
+        this.setHighlightMob(nearestMob);
+        // FIXME: draw a highlight
+        // FIXME: display the label of the center mob
+    },
+    
+    /** @private */
+    _convertPixelsToMeters: function(pos) {
+        var centerMob = this.getCenterMob() || {x:0, y:0},
+            inverseScale = 1 / this.distanceScale,
+            halfMapSize = this.width / 2;
+        return {
+            x:(pos.x - halfMapSize) * inverseScale + centerMob.x, 
+            y:(pos.y - halfMapSize) * inverseScale + centerMob.y
+        };
+    },
+    
     /** @private */
     _handleWheel: function(event) {
         // Limit wheel Y to the allowed exponential values
@@ -147,13 +218,17 @@ gv.Map = new JS.Class('Map', myt.View, {
     
     _updateWidth: function() {
         var w = this.width,
-            mobsLayer = this.mobsLayer;
+            rounding = w / 2,
+            mobsLayer = this.mobsLayer,
+            mobsContainer = this.mobsContainer;
         
+        mobsLayer.setRoundedCorners(rounding);
         this.setHeight(w);
-        mobsLayer.setRoundedCorners(w / 2);
+        mobsContainer.setWidth(w);
+        mobsContainer.setHeight(w);
+        mobsContainer.deStyle.clipPath = 'circle(' + rounding + 'px at ' + rounding + 'px ' + rounding + 'px)';
         
         w -= 2;
-        
         mobsLayer.setWidth(w);
         mobsLayer.setHeight(w);
         
@@ -164,15 +239,14 @@ gv.Map = new JS.Class('Map', myt.View, {
     updateSize: function() {
         var self = this,
             mobsLayer = self.mobsLayer,
-            size = self.parent.width,
-            opacity = 1;
+            size = self.parent.width;
         if (self.closed) {
             size = 0;
         } else if (!self.expanded) {
-            opacity = 0.6;
             size *= 4/9;
+        } else {
+            size -= 8;
         }
-        mobsLayer.setOpacity(opacity);
         
         self.stopActiveAnimators('width');
         if (!mobsLayer.visible) mobsLayer.setVisible(true);
@@ -230,7 +304,7 @@ gv.Map = new JS.Class('Map', myt.View, {
             if (cicFunc(halfMapSize, halfMapSize, halfMapSize, mobCx, mobCy, mobHaloR)) {
                 mobsLayer.setFillStyle(MOB_COLOR_BY_TYPE[type]);
                 
-                mobsLayer.setGlobalAlpha(0.25);
+                mobsLayer.setGlobalAlpha(Math.max(0, 0.3 - (mobHaloR / (8 * mapSize))));
                 mobsLayer.beginPath();
                 
                 // Draw a rect rather than a circle where possible.
