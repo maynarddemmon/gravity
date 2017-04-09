@@ -1,0 +1,146 @@
+/** The model of a moving object.
+    
+    Events:
+        None
+    
+    Attributes:
+        None
+*/
+gv.Mob = new JS.Class('Mob', myt.Eventable, {
+    // Life Cycle //////////////////////////////////////////////////////////////
+    init: function(parent, attrs) {
+        var self = this;
+        
+        self._id = myt.generateGuid();
+        self.dvx = self.dvy = 0;
+        
+        self.callSuper(parent, attrs);
+        
+        self._calculateVolumeAndRadius();
+    },
+    
+    
+    // Accessors ///////////////////////////////////////////////////////////////
+    getId: function() {return this._id;},
+    
+    setLabel: function(v) {this.label = v;},
+    setType: function(v) {this.type = v;},
+    
+    setMass: function(m) {
+        this.mass = Math.max(0, m);
+        if (this.inited) this._calculateVolumeAndRadius();
+    },
+    setDensity: function(d) {
+        this.density = Math.max(0, d);
+        if (this.inited) this._calculateVolumeAndRadius();
+    },
+    
+    setX: function(x) {this.x = x;},
+    setY: function(y) {this.y = y;},
+    
+    setVx: function(vx) {this.vx = vx;},
+    setVy: function(vy) {this.vy = vy;},
+    
+    
+    // Methods /////////////////////////////////////////////////////////////////
+    setMapCenter: function(v) {if (v) gv.map.setCenterMob(this);},
+    isMapCenter: function() {return gv.map.getCenterMob() === this;},
+    
+    setShipMapCenter: function(v) {if (v) gv.shipMap.setCenterMob(this);},
+    isShipMapCenter: function() {return gv.shipMap.getCenterMob() === this;},
+    
+    setTargetMapCenter: function(v) {if (v) gv.targetMap.setCenterMob(this);},
+    isTargetMapCenter: function() {return gv.targetMap.getCenterMob() === this;},
+    
+    getSpeed: function() {
+        var vx = this.vx,
+            vy = this.vy;
+        return Math.sqrt((vx * vx) + (vy * vy));
+    },
+    
+    getMomentum: function() {
+        return this.getSpeed() * this.mass;
+    },
+    
+    measureDistance: function(mob) {
+        return Math.sqrt(this.measureDistanceSquared(mob));
+    },
+    
+    measureDistanceSquared: function(mob) {
+        var diffX = mob.x - this.x,
+            diffY = mob.y - this.y;
+        return (diffX * diffX) + (diffY * diffY);
+    },
+    
+    getVolume: function() {return this._volume;},
+    getRadius: function() {return this._radius;},
+    
+    /** @private */
+    _calculateVolumeAndRadius: function() {
+        var self = this,
+            volume = self._volume = (self.mass / self.density) * gv.DENSITY_SCALING;
+        self._radius = Math.cbrt(volume * gv.THREE_OVER_FOUR_PI);
+    },
+    
+    collideWith: function(mob) {
+        var self = this;
+        if (mob && mob !== self && (self.measureDistance(mob) < self.getRadius() + mob.getRadius())) {
+            var spacetime = gv.spacetime;
+            
+            // Remove both mobs since they collided
+            spacetime.removeMob(self);
+            spacetime.removeMob(mob);
+            
+            // Make a new mob
+            var massA = self.mass,
+                massB = mob.mass,
+                selfIsMoreMassive = massA > massB,
+                newMass = massA + massB,
+                massRatioA = massA / newMass,
+                massRatioB = massB / newMass,
+                newMob = spacetime.addMob(new gv.Mob({
+                    mass:newMass,
+                    density:self.density * massRatioA + mob.density * massRatioB,
+                    x:self.x * massRatioA + mob.x * massRatioB,
+                    y:self.y * massRatioA + mob.y * massRatioB,
+                    vx:self.vx * massRatioA + mob.vx * massRatioB,
+                    vy:self.vy * massRatioA + mob.vy * massRatioB,
+                    mapCenter:self.isMapCenter() || mob.isMapCenter(),
+                    shipMapCenter:self.isShipMapCenter() || mob.isShipMapCenter(),
+                    targetMapCenter:self.isTargetMapCenter() || mob.isTargetMapCenter(),
+                    label:selfIsMoreMassive ? self.label : mob.label,
+                    type:selfIsMoreMassive ? self.type : mob.type
+                }));
+            
+            // Finally destroy both mobs now that we're done using information from them.
+            self.destroy();
+            mob.destroy();
+            
+            return newMob;
+        }
+    },
+    
+    incrementDeltaV: function(mob) {
+        var self = this,
+            radiansToMob = Math.atan2(mob.y - self.y, mob.x - self.x),
+            dv = gv.G * mob.mass / self.measureDistanceSquared(mob);
+        self.dvx += Math.cos(radiansToMob) * dv;
+        self.dvy += Math.sin(radiansToMob) * dv;
+    },
+    
+    applyDeltaV: function() {
+        var self = this,
+            dt = gv.spacetime.dt,
+            
+            // Update velocity
+            vx = self.vx += self.dvx * dt,
+            vy = self.vy += self.dvy * dt;
+        
+        // Update Position
+        self.x += vx * dt;
+        self.y += vy * dt;
+        
+        // Reset
+        self.dvx = self.dvy = 0;
+    }
+});
