@@ -38,9 +38,9 @@ gv.App = new JS.Class('App', myt.View, {
             for (var i = 0; 200 > i; i++) {
                 mobArray.push({
                     x:AU - (i * 600 * 1000 * 1000), 
-                    y:200000000, 
+                    y:4000000000 * (i % 5) - 2, 
                     vx:0, 
-                    vy:30000 + 1023 - i * 10, 
+                    vy:30000 + 1000 + i * 100, 
                     mass:1.0e22 * (i + 1), 
                     density:2000, 
                     type:'moon',
@@ -53,25 +53,25 @@ gv.App = new JS.Class('App', myt.View, {
         var mapContainer = this.mapContainer = new M.View(self);
         
         GV.map = self.map = new GV.Map(mapContainer, {
-            scaleValue:24,
+            scaleValue:20.2,
             centerMob:spacetime.getMobByLabel('Sun'),
             align:'right', valign:'top', expanded:true
         });
         
         GV.shipMap = self.shipMap = new GV.Map(mapContainer, {
-            scaleValue:17,
+            scaleValue:15.5,
             centerMob:spacetime.getMobByLabel('Earth'),
             align:'right', valign:'bottom'
         });
         
         GV.targetMap = self.targetMap = new GV.Map(mapContainer, {
-            scaleValue:16,
+            scaleValue:15,
             centerMob:spacetime.getMobByLabel('Luna'),
             align:'left', valign:'bottom'
         });
         
         // Controls
-        new GV.Slider(self, {x:5, y:5, width:160, value:11, minValue:0, maxValue:18}, [{
+        new GV.Slider(self, {x:5, y:5, width:160, value:15, minValue:0, maxValue:18}, [{
             setValue: function(v) {
                 this.callSuper(v);
                 
