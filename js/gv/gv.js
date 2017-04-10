@@ -42,8 +42,11 @@ gv = (function() {
             this.SIMULATED_SECONDS_PER_TIME_SLICE = this.SECONDS_PER_CALC * v;
         },
         
+        // React only mass theshold
+        REACT_ONLY_THRESHOLD:1.0e21,
+        
         // Makes all mobs larger
-        DENSITY_SCALING:1000,
+        DENSITY_SCALING:8,
         
         // Used in volume of a sphere calculations.
         THREE_OVER_FOUR_PI:3 / (4 * Math.PI),
@@ -93,8 +96,23 @@ gv = (function() {
         
         /** Converts a radius (in meters) and orbit period (in days) 
             to meters/second. */
-        radiusAndPeriodToSpeed: function(r, p) {
+        getSpeedForRadiusAndPeriod: function(r, p) {
             return (2 * Math.PI * r) / (p * 3600 * 24);
+        },
+        
+        /** Gets the speed of a satellite with a circular orbit at a given
+            radius around a given center mass. */
+        getSpeedForCircularOrbit: function(satelliteMob, centerMob, orbitRadius) {
+            return Math.sqrt(gv.G * (satelliteMob.mass + centerMob.mass) / orbitRadius);
+        },
+        
+        giveMobCircularOrbit: function(satelliteMob, centerMob, orbitRadius, angle) {
+            var speed = this.getSpeedForCircularOrbit(satelliteMob, centerMob, orbitRadius),
+                tangentAngle = angle + (Math.PI / 2);
+            satelliteMob.setX(centerMob.x + Math.cos(angle) * orbitRadius);
+            satelliteMob.setY(centerMob.y + Math.sin(angle) * orbitRadius);
+            satelliteMob.setVx(centerMob.vx + Math.cos(tangentAngle) * speed);
+            satelliteMob.setVy(centerMob.vy + Math.sin(tangentAngle) * speed);
         }
     };
 })();

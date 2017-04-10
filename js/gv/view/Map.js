@@ -34,10 +34,10 @@ gv.Map = new JS.Class('Map', myt.View, {
         self.attachToDom(mobsLayer, '_handleMove', 'mousemove');
         self.attachToDom(mobsLayer, '_handleClick', 'click');
         self.scaleLabel = new M.Text(mobsLayer, {
-            align:'center', y:5, fontSize:'10px', textColor:'#00ff00'
+            align:'center', y:7, fontSize:'10px', textColor:'#00ff00'
         });
         self.centerMobLabel = new M.Text(mobsLayer, {
-            align:'center', y:15, fontSize:'10px', textColor:'#00ff00'
+            align:'center', y:19, fontSize:'10px', textColor:'#00ff00'
         });
         
         self.hideBtn = new GV.CircleButton(self, {
@@ -294,7 +294,7 @@ gv.Map = new JS.Class('Map', myt.View, {
             
             mobCx = offsetX + mob.x * scale;
             mobCy = offsetY + mob.y * scale;
-            mobR = mob.getRadius() * scale;
+            mobR = mob.radius * scale;
             mobHaloR = mobR * HALO_RADIUS_BY_TYPE[type];
             
             // Don't draw halos that are too small to see

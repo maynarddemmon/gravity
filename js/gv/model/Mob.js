@@ -84,53 +84,49 @@ gv.Mob = new JS.Class('Mob', myt.Eventable, {
         return (diffX * diffX) + (diffY * diffY);
     },
     
-    getVolume: function() {return this._volume;},
-    getRadius: function() {return this._radius;},
-    
     /** @private */
     _calculateVolumeAndRadius: function() {
         var self = this,
-            volume = self._volume = (self.mass / self.density) * gv.DENSITY_SCALING;
-        self._radius = Math.cbrt(volume * gv.THREE_OVER_FOUR_PI);
+            volume = self.volume = (self.mass / self.density) * gv.DENSITY_SCALING,
+            radius = self.radius = Math.cbrt(volume * gv.THREE_OVER_FOUR_PI);
+        self.radiusSquared = radius * radius;
     },
     
-    collideWith: function(mob) {
-        var self = this;
-        if (mob && mob !== self && (self.measureDistance(mob) < self.getRadius() + mob.getRadius())) {
-            var spacetime = gv.spacetime;
-            
-            // Remove both mobs since they collided
-            spacetime.removeMob(self);
-            spacetime.removeMob(mob);
-            
-            // Make a new mob
-            var massA = self.mass,
-                massB = mob.mass,
-                selfIsMoreMassive = massA > massB,
-                newMass = massA + massB,
-                massRatioA = massA / newMass,
-                massRatioB = massB / newMass,
-                newMob = spacetime.addMob(new gv.Mob({
-                    mass:newMass,
-                    density:self.density * massRatioA + mob.density * massRatioB,
-                    x:self.x * massRatioA + mob.x * massRatioB,
-                    y:self.y * massRatioA + mob.y * massRatioB,
-                    vx:self.vx * massRatioA + mob.vx * massRatioB,
-                    vy:self.vy * massRatioA + mob.vy * massRatioB,
-                    mapCenter:self.isMapCenter() || mob.isMapCenter(),
-                    shipMapCenter:self.isShipMapCenter() || mob.isShipMapCenter(),
-                    targetMapCenter:self.isTargetMapCenter() || mob.isTargetMapCenter(),
-                    label:selfIsMoreMassive ? self.label : mob.label,
-                    type:selfIsMoreMassive ? self.type : mob.type
-                }));
-            
-            // Finally destroy both mobs now that we're done using information from them.
-            self.destroy();
-            mob.destroy();
-            
-console.log('COLLISION!!!');
-            return newMob;
-        }
+    resolveCollision: function(mob) {
+        var self = this,
+            spacetime = gv.spacetime;
+        
+        // Remove both mobs since they collided
+        spacetime.removeMob(self);
+        spacetime.removeMob(mob);
+        
+console.log('COLLISION!!!', mob.label, self.label);
+        // Make a new mob
+        var massA = self.mass,
+            massB = mob.mass,
+            selfIsMoreMassive = massA > massB,
+            newMass = massA + massB,
+            massRatioA = massA / newMass,
+            massRatioB = massB / newMass,
+            newMob = spacetime.addMob(new gv.Mob({
+                mass:newMass,
+                density:self.density * massRatioA + mob.density * massRatioB,
+                x:self.x * massRatioA + mob.x * massRatioB,
+                y:self.y * massRatioA + mob.y * massRatioB,
+                vx:self.vx * massRatioA + mob.vx * massRatioB,
+                vy:self.vy * massRatioA + mob.vy * massRatioB,
+                mapCenter:self.isMapCenter() || mob.isMapCenter(),
+                shipMapCenter:self.isShipMapCenter() || mob.isShipMapCenter(),
+                targetMapCenter:self.isTargetMapCenter() || mob.isTargetMapCenter(),
+                label:selfIsMoreMassive ? self.label : mob.label,
+                type:selfIsMoreMassive ? self.type : mob.type
+            }));
+        
+        // Finally destroy both mobs now that we're done using information from them.
+        self.destroy();
+        mob.destroy();
+        
+        return newMob;
     },
     
     incrementDeltaV: function(mob) {

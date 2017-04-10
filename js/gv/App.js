@@ -14,8 +14,7 @@ gv.App = new JS.Class('App', myt.View, {
     initNode: function(parent, attrs) {
         var self = this,
             M = myt,
-            GV = gv,
-            AU = GV.AU;
+            GV = gv;
         
         attrs.bgColor = '#003300';
         attrs.minWidth = attrs.minHeight = 600;
@@ -24,51 +23,8 @@ gv.App = new JS.Class('App', myt.View, {
         GV.app = self;
         
         // Create Spacetime
-        var spacetime = GV.spacetime = new GV.Spacetime(),
-            mobArray = [
-                {x:0,                   y:0, vx:0, vy:0,            mass:1.989e30, density:1410, type:'star',   label:'Sun'},
-                {x:0.387 * AU,          y:0, vx:0, vy:47360,        mass:3.285e23, density:5420, type:'planet', label:'Mercury'},
-                {x:-(0.723 * AU),       y:0, vx:0, vy:-35020,       mass:4.867e24, density:5243, type:'planet', label:'Venus'},
-                
-                {x:149.60e9,            y:0, vx:0, vy:30000,        mass:5.972e24, density:5520, type:'planet', label:'Earth'},
-                {x:149.60e9 + 3.844e8,  y:0, vx:0, vy:30000 + 1023, mass:7.348e22, density:3344, type:'moon',   label:'Luna'},
-                
-                {
-                    x:-227.92e9, y:0,
-                    vx:0, vy:-24070,
-                    mass:6.417e23, density:3933, 
-                    type:'planet', label:'Mars'
-                },{
-                    x:-227.92e9 + 9.378e6, y:0, 
-                    vx:0, vy:-24070 + gv.radiusAndPeriodToSpeed(9.378e6, 0.31891), 
-                    mass:1.06e16, density:1900, 
-                    type:'moon', label:'Phobos'
-                },{
-                    x:-227.92e9 - 23.459e6, y:0, 
-                    vx:0, vy:-24070 - gv.radiusAndPeriodToSpeed(23.459e6, 1.26244), 
-                    mass:2.4e15, density:1750, 
-                    type:'moon', label:'Deimos'
-                },{
-                    x:778.57e9,
-                    y:0, vx:0, vy:13060,
-                    mass:1.89819e27, density:1326,
-                    type:'planet', label:'Jupiter'
-                },
-            ];
-            
-            for (var i = 0; 200 > i; i++) {
-                mobArray.push({
-                    x:AU - (i * 600 * 1000 * 1000), 
-                    y:4000000000 * (i % 5) - 2, 
-                    vx:0, 
-                    vy:30000 + 1000 + i * 100, 
-                    mass:1.0e16 * (i + 1), 
-                    density:1500, 
-                    type:'asteroid',
-                    label:'Asteroid ' + i
-                });
-            }
-        spacetime.bulkAdd(mobArray);
+        var spacetime = GV.spacetime = new GV.Spacetime();
+        self._buildSolarSystem(spacetime);
         
         // Build UI
         var mapContainer = this.mapContainer = new M.View(self);
@@ -173,5 +129,65 @@ gv.App = new JS.Class('App', myt.View, {
                 }
             }
         }
+    },
+    
+    /** @private */
+    _buildSolarSystem: function(spacetime) {
+        var M = myt,
+            GV = gv,
+            PI = Math.PI,
+            mobs = [];
+        
+        var sun = new GV.Mob({
+            x:0, y:0,
+            vx:0, vy:0,
+            mass:1.989e30, density:1410,
+            type:'star', label:'Sun'
+        });
+        mobs.push(sun);
+        
+        var mercury = new GV.Mob({mass:3.3011e23, density:5427, type:'planet', label:'Mercury'});
+        GV.giveMobCircularOrbit(mercury, sun, 57.91e9, 0);
+        mobs.push(mercury);
+        
+        var venus = new GV.Mob({mass:4.8675e24, density:5243, type:'planet', label:'Venus'});
+        GV.giveMobCircularOrbit(venus, sun, 108.21e9, PI/2);
+        mobs.push(venus);
+        
+        var earth = new GV.Mob({mass:5.9724e24, density:5514, type:'planet', label:'Earth'});
+        GV.giveMobCircularOrbit(earth, sun, 149.60e9, PI);
+        mobs.push(earth);
+        
+        var luna = new GV.Mob({mass:7.346e22, density:3344, type:'moon', label:'Luna'});
+        GV.giveMobCircularOrbit(luna, earth, 3.844e8, 0);
+        mobs.push(luna);
+        
+        var mars = new GV.Mob({mass:6.4171e23, density:3933, type:'planet', label:'Mars'});
+        GV.giveMobCircularOrbit(mars, sun, 227.92e9, 3*PI/2);
+        mobs.push(mars);
+        
+        var phobos = new GV.Mob({mass:1.06e16, density:1900, type:'moon', label:'Phobos'});
+        GV.giveMobCircularOrbit(phobos, mars, 9.378e6, 0);
+        mobs.push(phobos);
+        
+        var deimos = new GV.Mob({mass:2.4e15, density:1750, type:'moon', label:'Deimos'});
+        GV.giveMobCircularOrbit(deimos, mars, 23.459e6, PI);
+        mobs.push(deimos);
+        
+        var asteroid, i, count = 150,
+            lowerRange = 329115316e3,
+            upperRange = 478713186e3,
+            averageMass = 3.2e21 / count;
+        for (i = 0; count > i; i++) {
+            asteroid = new GV.Mob({mass:M.getRandomArbitrary(averageMass/10, averageMass*10), density:2000, type:'asteroid', label:'Asteroid ' + i});
+            GV.giveMobCircularOrbit(asteroid, sun, M.getRandomArbitrary(lowerRange, upperRange), M.getRandomArbitrary(0, 2*PI));
+            mobs.push(asteroid);
+        }
+        
+        var jupiter = new GV.Mob({mass:1.89819e27, density:1326, type:'planet', label:'Jupiter'});
+        GV.giveMobCircularOrbit(jupiter, sun, 778.57e9, 0);
+        mobs.push(jupiter);
+        
+        spacetime.bulkAddMob(mobs);
     }
 });

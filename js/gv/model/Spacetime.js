@@ -10,6 +10,8 @@ gv.Spacetime = new JS.Class('Spacetime', myt.Eventable, {
     // Life Cycle //////////////////////////////////////////////////////////////
     init: function(attrs) {
         this._mobs = [];
+        this._reactOnlyMobs = [];
+        this._allMobs = [];
         this._mobsById = {};
         
         this.callSuper(attrs);
@@ -17,14 +19,14 @@ gv.Spacetime = new JS.Class('Spacetime', myt.Eventable, {
     
     
     // Methods /////////////////////////////////////////////////////////////////
-    bulkAdd: function(arrayOfMobAttrs) {
-        var i = arrayOfMobAttrs.length;
-        while (i) this.addMob(new gv.Mob(arrayOfMobAttrs[--i]));
+    bulkAddMob: function(arrayOfMobs) {
+        var i = arrayOfMobs.length;
+        while (i) this.addMob(arrayOfMobs[--i]);
     },
     
     // MOB CRUD
     getAllMobs: function(makeCopy) {
-        return makeCopy ? this._mobs.concat() : this._mobs;
+        return makeCopy ? this._allMobs.concat() : this._allMobs;
     },
     
     getMob: function(id) {
@@ -32,7 +34,9 @@ gv.Spacetime = new JS.Class('Spacetime', myt.Eventable, {
     },
     
     getMobByLabel: function(label) {
-        var mobs = this._mobs, i = mobs.length, mob;
+        var mobs = this._allMobs, 
+            i = mobs.length, 
+            mob;
         while (i) {
             mob = mobs[--i];
             if (mob.label === label) return mob;
@@ -40,7 +44,8 @@ gv.Spacetime = new JS.Class('Spacetime', myt.Eventable, {
     },
     
     getNearestMob: function(pos) {
-        var mobs = this._mobs, i = mobs.length, mob,
+        var mobs = this._allMobs, 
+            i = mobs.length, mob,
             distance, nearestDistance, nearestMob;
         while (i) {
             mob = mobs[--i];
@@ -50,6 +55,7 @@ gv.Spacetime = new JS.Class('Spacetime', myt.Eventable, {
                 nearestMob = mob;
             }
         }
+        
         return nearestMob
     },
     
@@ -60,7 +66,12 @@ gv.Spacetime = new JS.Class('Spacetime', myt.Eventable, {
     addMob: function(mob) {
         if (mob) {
             if (!this.hasMob(mob)) {
-                this._mobs.push(mob);
+                if (mob.mass < gv.REACT_ONLY_THRESHOLD) {
+                    this._reactOnlyMobs.push(mob);
+                } else {
+                    this._mobs.push(mob);
+                }
+                this._allMobs.push(mob);
                 this._mobsById[mob.getId()] = mob;
             }
         }
@@ -70,7 +81,7 @@ gv.Spacetime = new JS.Class('Spacetime', myt.Eventable, {
     removeMob: function(mobToRemove) {
         if (mobToRemove) {
             if (this.hasMob(mobToRemove)) {
-                var mobs = this._mobs, 
+                var mobs = mobToRemove.mass < gv.REACT_ONLY_THRESHOLD ? this._reactOnlyMobs : this._mobs,
                     i = mobs.length;
                 while (i) {
                     if (mobs[--i] === mobToRemove) {
@@ -78,6 +89,17 @@ gv.Spacetime = new JS.Class('Spacetime', myt.Eventable, {
                         break;
                     }
                 }
+                
+                // Remove from _allMobs as well
+                mobs = this._allMobs;
+                i = mobs.length;
+                while (i) {
+                    if (mobs[--i] === mobToRemove) {
+                        mobs.splice(i, 1);
+                        break;
+                    }
+                }
+                
                 delete this._mobsById[mobToRemove.getId()];
                 return mobToRemove;
             }
@@ -116,8 +138,7 @@ gv.Spacetime = new JS.Class('Spacetime', myt.Eventable, {
     // Main Loop
     /** @private */
     _loop: function() {
-        var self = this,
-            mobs = self._mobs;
+        var self = this;
         
         // Lock in a time scale for the duration of this loop iteration.
         this.dt = gv.SIMULATED_SECONDS_PER_TIME_SLICE;
@@ -128,9 +149,10 @@ gv.Spacetime = new JS.Class('Spacetime', myt.Eventable, {
             mobToCheck, 
             i, 
             mob, 
-            newMob;
+            newMob, r1Squared;
         while (mobsToCheck.length) {
             mobToCheck = mobsToCheck.shift();
+            r1Squared = mobToCheck.radiusSquared;
             
             // Mob is destroyed because of an earlier collision so no need to
             // check it
@@ -149,34 +171,42 @@ gv.Spacetime = new JS.Class('Spacetime', myt.Eventable, {
                     continue;
                 }
                 
-                newMob = mobToCheck.collideWith(mob);
-                if (newMob) {
-                    mobsToCheck.push(newMob);
-                    allMobs.push(newMob);
-                    
-                    // Premptively splice out the mob we were checking against
-                    // since it will definitely be destroyed
-                    allMobs.splice(i, 1);
-                    
-                    // Since a collision occured we can move on to the next
-                    // mob to check so break out of the while loop
-                    break;
+                if (mob !== mobToCheck) {
+                    // Check for collision
+                    if (mobToCheck.measureDistanceSquared(mob) < r1Squared + mob.radiusSquared) {
+                        newMob = mobToCheck.resolveCollision(mob);
+                        
+                        mobsToCheck.push(newMob);
+                        allMobs.push(newMob);
+                        
+                        // Premptively splice out the mob we were checking against
+                        // since it will definitely be destroyed
+                        allMobs.splice(i, 1);
+                        
+                        // Since a collision occured we can move on to the next
+                        // mob to check so break out of the while loop
+                        break;
+                    }
                 }
             }
         }
         
         // Calculate gravity forces
-        var len = mobs.length,
+        var mobs = self._mobs,
+            i = mobs.length,
+            allMobs = self.getAllMobs(),
             j, mobA, mobB;
-        i = len;
         while (i) {
             mobA = mobs[--i];
-            j = len;
-            while (j) if (i !== --j) mobA.incrementDeltaV(mobs[j]);
+            j = allMobs.length;
+            while (j) {
+                mobB = allMobs[--j];
+                if (mobA !== mobB) mobB.incrementDeltaV(mobA);
+            }
         }
         
         // Update mob positions
-        i = len;
-        while (i) mobs[--i].applyDeltaV();
+        j = allMobs.length;
+        while (j) allMobs[--j].applyDeltaV();
     }
 });
