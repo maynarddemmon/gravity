@@ -103,14 +103,16 @@ gv.App = new JS.Class('App', myt.View, {
     },
     
     setHighlightMob: function(v) {
-        this.highlightMob = v;
-        
-        // Force a redraw if spacetime is not updating
-        var GV = gv;
-        if (!GV.spacetime.isRunning()) {
-            GV.map.redraw();
-            GV.shipMap.redraw();
-            GV.targetMap.redraw();
+        if (this.highlightMob !== v) {
+            this.highlightMob = v;
+            
+            // Force a redraw if spacetime is not updating
+            var GV = gv;
+            if (!GV.spacetime.isRunning()) {
+                GV.map.redraw();
+                GV.shipMap.redraw();
+                GV.targetMap.redraw();
+            }
         }
     },
     
