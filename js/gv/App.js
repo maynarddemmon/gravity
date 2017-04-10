@@ -355,6 +355,17 @@ gv.App = new JS.Class('App', myt.View, {
             GV.giveMobCircularOrbit(styx, pluto, 42.410e6, PI);
             mobs.push(styx);
         
+        // Kuiper Belt
+        count = 100;
+        lowerRange = 39.5 * GV.AU;
+        upperRange = 48 * GV.AU;
+        averageMass = 3.2e19 / count;
+        for (i = 0; count > i; i++) {
+            asteroid = new GV.Mob({mass:M.getRandomArbitrary(averageMass/10, averageMass*10), density:1000, type:'asteroid', label:'Kuiper Belt Object ' + i});
+            GV.giveMobCircularOrbit(asteroid, sun, M.getRandomArbitrary(lowerRange, upperRange), M.getRandomArbitrary(0, 2*PI));
+            mobs.push(asteroid);
+        }
+        
         spacetime.bulkAddMob(mobs);
     }
 });
