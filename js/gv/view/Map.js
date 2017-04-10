@@ -113,10 +113,6 @@ gv.Map = new JS.Class('Map', myt.View, {
     },
     getCenterMob: function() {return this._centerMob;},
     
-    setHighlightMob: function(v) {
-        this._highlightMob = v;
-    },
-    
     setDistanceScale: function(v) {
         if (v !== this.distanceScale) {
             this.distanceScale = v;
@@ -146,19 +142,19 @@ gv.Map = new JS.Class('Map', myt.View, {
     
     /** @private */
     _handleClick: function(event) {
-        if (this._highlightMob) {
-            this.setCenterMob(this._highlightMob);
-            this.setHighlightMob();
+        var highlightMob = gv.app.highlightMob;
+        if (highlightMob) {
+            this.setCenterMob(highlightMob);
+            gv.app.setHighlightMob();
         }
     },
     
     /** @private */
     _handleMove: function(event) {
-        var pos = myt.MouseObservable.getMouseFromEventRelativeToView(event, this.mobsLayer),
-            nearestMob = gv.spacetime.getNearestMob(this._convertPixelsToMeters(pos));
-        this.setHighlightMob(nearestMob);
-        // FIXME: draw a highlight
-        // FIXME: display the label of the center mob
+        var GV = gv,
+            pos = myt.MouseObservable.getMouseFromEventRelativeToView(event, this.mobsLayer),
+            nearestMob = GV.spacetime.getNearestMob(this._convertPixelsToMeters(pos));
+        GV.app.setHighlightMob(nearestMob);
     },
     
     /** @private */
@@ -243,7 +239,7 @@ gv.Map = new JS.Class('Map', myt.View, {
         if (self.closed) {
             size = 0;
         } else if (!self.expanded) {
-            size *= 4/9;
+            size *= 3/8;
         } else {
             size -= 8;
         }
@@ -284,7 +280,8 @@ gv.Map = new JS.Class('Map', myt.View, {
             type,
             cicFunc = GV.circleIntersectsCircle,
             cccFunc = GV.circleContainsCircle,
-            mobCx, mobCy, mobR, mobHaloR;
+            mobCx, mobCy, mobR, mobHaloR,
+            highlightMob = GV.app.highlightMob;
         
         mobsLayer.clear();
         
@@ -298,41 +295,57 @@ gv.Map = new JS.Class('Map', myt.View, {
             mobHaloR = mobR * HALO_RADIUS_BY_TYPE[type];
             
             // Don't draw halos that are too small to see
-            if (mobHaloR < 0.25) continue;
-            
-            // Don't draw halos or mobs that do not intersect the map
-            if (cicFunc(halfMapSize, halfMapSize, halfMapSize, mobCx, mobCy, mobHaloR)) {
-                mobsLayer.setFillStyle(MOB_COLOR_BY_TYPE[type]);
-                
-                mobsLayer.setGlobalAlpha(Math.max(0, 0.3 - (mobHaloR / (8 * mapSize))));
-                mobsLayer.beginPath();
-                
-                // Draw a rect rather than a circle where possible.
-                if (cccFunc(mobCx, mobCy, mobHaloR, halfMapSize, halfMapSize, halfMapSize)) {
-                    mobsLayer.rect(0, 0, mapSize, mapSize);
-                } else {
-                    mobsLayer.circle(mobCx, mobCy, mobHaloR);
-                }
-                
-                mobsLayer.fill();
-                
-                // Don't draw mobs that are too small to see
-                if (mobR < 0.25) continue;
-                
-                // Don't draw mobs that do not intersect the map
-                if (cicFunc(halfMapSize, halfMapSize, halfMapSize, mobCx, mobCy, mobR)) {
-                    mobsLayer.setGlobalAlpha(1);
+            if (mobHaloR > 0.25) {
+                // Don't draw halos or mobs that do not intersect the map
+                if (cicFunc(halfMapSize, halfMapSize, halfMapSize, mobCx, mobCy, mobHaloR)) {
+                    mobsLayer.setFillStyle(MOB_COLOR_BY_TYPE[type]);
+                    
+                    mobsLayer.setGlobalAlpha(Math.max(0, 0.3 - (mobHaloR / (8 * mapSize))));
                     mobsLayer.beginPath();
                     
                     // Draw a rect rather than a circle where possible.
-                    if (cccFunc(mobCx, mobCy, mobR, halfMapSize, halfMapSize, halfMapSize)) {
+                    if (cccFunc(mobCx, mobCy, mobHaloR, halfMapSize, halfMapSize, halfMapSize)) {
                         mobsLayer.rect(0, 0, mapSize, mapSize);
                     } else {
-                        mobsLayer.circle(mobCx, mobCy, mobR);
+                        mobsLayer.circle(mobCx, mobCy, mobHaloR);
                     }
                     
                     mobsLayer.fill();
+                    
+                    // Don't draw mobs that are too small to see
+                    if (mobR > 0.25) {
+                        // Don't draw mobs that do not intersect the map
+                        if (cicFunc(halfMapSize, halfMapSize, halfMapSize, mobCx, mobCy, mobR)) {
+                            mobsLayer.setGlobalAlpha(1);
+                            mobsLayer.beginPath();
+                            
+                            // Draw a rect rather than a circle where possible.
+                            if (cccFunc(mobCx, mobCy, mobR, halfMapSize, halfMapSize, halfMapSize)) {
+                                mobsLayer.rect(0, 0, mapSize, mapSize);
+                            } else {
+                                mobsLayer.circle(mobCx, mobCy, mobR);
+                            }
+                            
+                            mobsLayer.fill();
+                        }
+                    }
                 }
+            }
+            
+            // Draw the highlight if necessary
+            if (highlightMob === mob) {
+                var highlightRadius = Math.max(mobR + 4, 4);
+                mobsLayer.setGlobalAlpha(1);
+                mobsLayer.beginPath();
+                mobsLayer.circle(mobCx, mobCy, highlightRadius);
+                mobsLayer.setLineWidth(1.0);
+                mobsLayer.setStrokeStyle('#00ff00');
+                mobsLayer.stroke();
+                
+                mobsLayer.setFillStyle('#00ff00');
+                mobsLayer.setFont('10px "Lucida Console", Monaco, monospace');
+                mobsLayer.setTextAlign('center');
+                mobsLayer.fillText(highlightMob.label, mobCx, mobCy - highlightRadius - 4);
             }
         }
     },

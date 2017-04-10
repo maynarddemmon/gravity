@@ -102,6 +102,10 @@ gv.App = new JS.Class('App', myt.View, {
         if (this.inited) this._updateSize();
     },
     
+    setHighlightMob: function(v) {
+        this.highlightMob = v;
+    },
+    
     
     // Methods /////////////////////////////////////////////////////////////////
     /** @private */
