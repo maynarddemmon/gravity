@@ -107,7 +107,7 @@ gv.Map = new JS.Class('Map', myt.View, {
                 this._updateCenterMobLabel();
                 
                 // Force a redraw if spacetime is not updating
-                if (!gv.spacetime.isRunning()) this._redraw();
+                if (!gv.spacetime.isRunning()) this.redraw();
             }
         }
     },
@@ -118,7 +118,7 @@ gv.Map = new JS.Class('Map', myt.View, {
             this.distanceScale = v;
             
             // Force a redraw if spacetime is not updating
-            if (this.inited && !gv.spacetime.isRunning()) this._redraw();
+            if (this.inited && !gv.spacetime.isRunning()) this.redraw();
         }
     },
     
@@ -229,7 +229,7 @@ gv.Map = new JS.Class('Map', myt.View, {
         mobsLayer.setHeight(w);
         
         // Force a redraw if spacetime is not updating
-        if (!gv.spacetime.isRunning()) this._redraw();
+        if (!gv.spacetime.isRunning()) this.redraw();
     },
     
     updateSize: function() {
@@ -254,11 +254,11 @@ gv.Map = new JS.Class('Map', myt.View, {
     /** @private */
     _update: function(event) {
         // Only redraw if spacetime is updating.
-        if (gv.spacetime.isRunning()) this._redraw();
+        if (gv.spacetime.isRunning()) this.redraw();
     },
     
     /** @private */
-    _redraw: function() {
+    redraw: function() {
         if (this.closed) return;
         
         // Redraw mobs layer
