@@ -106,13 +106,14 @@ gv = (function() {
             return Math.sqrt(gv.G * (satelliteMob.mass + centerMob.mass) / orbitRadius);
         },
         
-        giveMobCircularOrbit: function(satelliteMob, centerMob, orbitRadius, angle) {
+        giveMobCircularOrbit: function(satelliteMob, centerMob, orbitRadius, angle, retrograde) {
             var speed = this.getSpeedForCircularOrbit(satelliteMob, centerMob, orbitRadius),
-                tangentAngle = angle + (Math.PI / 2);
+                tangentAngle = angle + (Math.PI / 2),
+                reverse = retrograde ? -1 : 1;
             satelliteMob.setX(centerMob.x + Math.cos(angle) * orbitRadius);
             satelliteMob.setY(centerMob.y + Math.sin(angle) * orbitRadius);
-            satelliteMob.setVx(centerMob.vx + Math.cos(tangentAngle) * speed);
-            satelliteMob.setVy(centerMob.vy + Math.sin(tangentAngle) * speed);
+            satelliteMob.setVx(centerMob.vx + Math.cos(tangentAngle) * speed * reverse);
+            satelliteMob.setVy(centerMob.vy + Math.sin(tangentAngle) * speed * reverse);
         }
     };
 })();
