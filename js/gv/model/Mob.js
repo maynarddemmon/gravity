@@ -137,10 +137,8 @@ console.log('COLLISION!!!', mob.label, self.label);
         self.dvy += Math.sin(radiansToMob) * dv;
     },
     
-    applyDeltaV: function() {
+    applyDeltaV: function(dt) {
         var self = this,
-            dt = gv.spacetime.dt,
-            
             // Update velocity
             vx = self.vx += self.dvx * dt,
             vy = self.vy += self.dvy * dt;

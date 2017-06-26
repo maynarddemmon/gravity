@@ -9,6 +9,55 @@
 	global.JSCLASS_PATH = global.ROOT = './js/';
 	global.MYT_IMAGE_ROOT = global.GV_IMAGE_ROOT = './img/';
 </script>
+<script id="shader-fragment" type="x-shader/x-fragment">
+	#ifdef GL_OES_standard_derivatives
+	#extension GL_OES_standard_derivatives : enable
+	#endif
+	
+	precision mediump float;
+	
+	//uniform vec2 u_resolution;
+	//uniform vec2 u_mouse;
+	//uniform float u_time;
+	
+	varying vec4 vColor;
+	
+	void main(void) {
+		float r = 0.0, delta = 0.0, alpha = 1.0;
+		vec2 cxy = 2.0 * gl_PointCoord - 1.0;
+		r = dot(cxy, cxy);
+	#ifdef GL_OES_standard_derivatives
+		delta = fwidth(r);
+		alpha = 1.0 - smoothstep(1.0 - delta, 1.0 + delta, r);
+	#endif
+		gl_FragColor = vColor * alpha;
+	}
+</script>
+<script id="shader-vertex" type="x-shader/x-vertex">
+	attribute vec2 aVtxPosition;
+	attribute vec4 aVtxColor;
+	attribute float aVtxSize;
+	
+	uniform vec2 u_resolution;
+	
+	varying vec4 vColor;
+	
+	void main(void) {
+		// convert the position from pixels to 0.0 to 1.0
+		vec2 zeroToOne = aVtxPosition / u_resolution;
+		
+		// convert from 0->1 to 0->2
+		vec2 zeroToTwo = zeroToOne * 2.0;
+		
+		// convert from 0->2 to -1->+1 (clipspace)
+		vec2 clipSpace = zeroToTwo - 1.0;
+		
+		gl_Position = vec4(clipSpace * vec2(1, -1), 0.0, 1.0);
+		
+		gl_PointSize = aVtxSize;
+		vColor = aVtxColor;
+	}
+</script>
 <script src="./js/loader-browser.min.js"></script>
 <script src="./js/manifest.js"></script>
 </head><body>

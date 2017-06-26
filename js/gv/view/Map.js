@@ -25,7 +25,7 @@ gv.Map = new JS.Class('Map', myt.View, {
         self.callSuper(parent, attrs);
         
         var mobsContainer = self.mobsContainer = new M.View(self);
-        var mobsLayer = self.mobsLayer = new M.Canvas(mobsContainer, {
+        var mobsLayer = self.mobsLayer = new GV.WebGL(mobsContainer, {
             border:[1, 'solid', '#009900'],
             bgColor:'#000000',
             pointerEvents:'auto'
@@ -33,10 +33,13 @@ gv.Map = new JS.Class('Map', myt.View, {
         self.attachToDom(mobsLayer, '_handleWheel', 'wheel');
         self.attachToDom(mobsLayer, '_handleMove', 'mousemove');
         self.attachToDom(mobsLayer, '_handleClick', 'click');
-        self.scaleLabel = new M.Text(mobsLayer, {
+        
+        self.labelLayer = new M.Canvas(mobsContainer, {x:1, y:1});
+        
+        self.scaleLabel = new M.Text(mobsContainer, {
             align:'center', y:7, fontSize:'10px', textColor:'#00ff00'
         });
-        self.centerMobLabel = new M.Text(mobsLayer, {
+        self.centerMobLabel = new M.Text(mobsContainer, {
             align:'center', y:19, fontSize:'10px', textColor:'#00ff00'
         });
         
@@ -105,9 +108,7 @@ gv.Map = new JS.Class('Map', myt.View, {
             
             if (this.inited) {
                 this._updateCenterMobLabel();
-                
-                // Force a redraw if spacetime is not updating
-                if (!gv.spacetime.isRunning()) this.redraw();
+                this.forceUpdate();
             }
         }
     },
@@ -116,9 +117,7 @@ gv.Map = new JS.Class('Map', myt.View, {
     setDistanceScale: function(v) {
         if (v !== this.distanceScale) {
             this.distanceScale = v;
-            
-            // Force a redraw if spacetime is not updating
-            if (this.inited && !gv.spacetime.isRunning()) this.redraw();
+            if (this.inited) this.forceUpdate();
         }
     },
     
@@ -155,6 +154,10 @@ gv.Map = new JS.Class('Map', myt.View, {
             pos = myt.MouseObservable.getMouseFromEventRelativeToView(event, this.mobsLayer),
             nearestMob = GV.spacetime.getNearestMob(this._convertPixelsToMeters(pos));
         GV.app.setHighlightMob(nearestMob);
+        
+        // Used for shader drawing by mouse position
+        //this.mobsLayer.mouseX = pos.x;
+        //this.mobsLayer.mouseY = pos.y;
     },
     
     /** @private */
@@ -215,6 +218,7 @@ gv.Map = new JS.Class('Map', myt.View, {
     _updateWidth: function() {
         var w = this.width,
             rounding = w / 2,
+            labelLayer = this.labelLayer,
             mobsLayer = this.mobsLayer,
             mobsContainer = this.mobsContainer;
         
@@ -228,8 +232,10 @@ gv.Map = new JS.Class('Map', myt.View, {
         mobsLayer.setWidth(w);
         mobsLayer.setHeight(w);
         
-        // Force a redraw if spacetime is not updating
-        if (!gv.spacetime.isRunning()) this.redraw();
+        labelLayer.setWidth(w);
+        labelLayer.setHeight(w);
+        
+        this.forceUpdate();
     },
     
     updateSize: function() {
@@ -251,102 +257,126 @@ gv.Map = new JS.Class('Map', myt.View, {
         });
     },
     
-    /** @private */
+    /** Redraw when spacetime is running.
+        @private */
     _update: function(event) {
-        // Only redraw if spacetime is updating.
-        if (gv.spacetime.isRunning()) this.redraw();
+        if (gv.spacetime.isRunning()) this._redraw();
+    },
+    
+    /** Redraw when spacetime is not running.
+        @private */
+    forceUpdate: function() {
+        if (!gv.spacetime.isRunning()) this._redraw();
     },
     
     /** @private */
-    redraw: function() {
+    _redraw: function() {
         if (this.closed) return;
         
         // Redraw mobs layer
         var self = this,
+            mapSize = self.width;
+        
+        if (mapSize <= 0) return;
+        
+        var halfMapSize = mapSize / 2,
             GV = gv,
             HALO_RADIUS_BY_TYPE = GV.HALO_RADIUS_BY_TYPE,
             MOB_COLOR_BY_TYPE = GV.MOB_COLOR_BY_TYPE,
-            mobs = gv.spacetime.getAllMobs(),
-            i = mobs.length, mob,
+            
+            mobs = GV.spacetime.getAllMobs(),
+            i = mobs.length,
+            mob,
             centerMob = self.getCenterMob() || {x:0, y:0},
-            mobsLayer = self.mobsLayer,
+            
             scale = self.distanceScale,
-            
-            mapSize = self.width,
-            halfMapSize = mapSize / 2,
-            
             offsetX = halfMapSize - centerMob.x * scale,
             offsetY = halfMapSize - centerMob.y * scale,
-            type,
+            
+            type, mobCx, mobCy, mobR, mobHaloR,
             cicFunc = GV.circleIntersectsCircle,
-            cccFunc = GV.circleContainsCircle,
-            mobCx, mobCy, mobR, mobHaloR,
-            highlightMob = GV.app.highlightMob;
+            
+            highlightMob = GV.app.highlightMob,
+            labelLayer = self.labelLayer,
+            
+            vertexData = {
+                count:0,
+                position:[],
+                size:[],
+                color:[]
+            };
         
-        mobsLayer.clear();
+        function addVertex(x, y, size, color, alpha) {
+            if (alpha === 0) return;
+            if (alpha < 1) {
+                color[0] *= alpha;
+                color[1] *= alpha;
+                color[2] *= alpha;
+            }
+            vertexData.position.push(x, y);
+            vertexData.size.push(size);
+            vertexData.color = vertexData.color.concat(color);
+            vertexData.count++;
+        }
         
         while (i) {
             mob = mobs[--i];
             type = mob.type;
             
-            mobCx = offsetX + mob.x * scale;
-            mobCy = offsetY + mob.y * scale;
             mobR = mob.radius * scale;
             mobHaloR = mobR * HALO_RADIUS_BY_TYPE[type];
             
             // Don't draw halos that are too small to see
             if (mobHaloR > 0.25) {
+                mobCx = offsetX + mob.x * scale;
+                mobCy = offsetY + mob.y * scale;
+                
                 // Don't draw halos or mobs that do not intersect the map
                 if (cicFunc(halfMapSize, halfMapSize, halfMapSize, mobCx, mobCy, mobHaloR)) {
-                    mobsLayer.setFillStyle(MOB_COLOR_BY_TYPE[type]);
-                    
-                    mobsLayer.setGlobalAlpha(Math.max(0, 0.3 - (mobHaloR / (8 * mapSize))));
-                    mobsLayer.beginPath();
-                    
-                    // Draw a rect rather than a circle where possible.
-                    if (cccFunc(mobCx, mobCy, mobHaloR, halfMapSize, halfMapSize, halfMapSize)) {
-                        mobsLayer.rect(0, 0, mapSize, mapSize);
-                    } else {
-                        mobsLayer.circle(mobCx, mobCy, mobHaloR);
-                    }
-                    
-                    mobsLayer.fill();
+                    addVertex(
+                        mobCx, mobCy,
+                        2 * mobHaloR, 
+                        MOB_COLOR_BY_TYPE[type].concat(), 
+                        Math.max(0, 0.5 - (mobHaloR / (8 * mapSize)))
+                    );
                     
                     // Don't draw mobs that are too small to see
                     if (mobR > 0.25) {
                         // Don't draw mobs that do not intersect the map
                         if (cicFunc(halfMapSize, halfMapSize, halfMapSize, mobCx, mobCy, mobR)) {
-                            mobsLayer.setGlobalAlpha(1);
-                            mobsLayer.beginPath();
-                            
-                            // Draw a rect rather than a circle where possible.
-                            if (cccFunc(mobCx, mobCy, mobR, halfMapSize, halfMapSize, halfMapSize)) {
-                                mobsLayer.rect(0, 0, mapSize, mapSize);
-                            } else {
-                                mobsLayer.circle(mobCx, mobCy, mobR);
-                            }
-                            
-                            mobsLayer.fill();
+                            addVertex(
+                                mobCx, mobCy, 
+                                2 * mobR, 
+                                MOB_COLOR_BY_TYPE[type].concat(), 
+                                1
+                            );
                         }
                     }
                 }
             }
-            
-            // Draw the highlight if necessary
-            if (highlightMob === mob) {
-                var highlightRadius = Math.max(mobR + 4, 4);
-                mobsLayer.setGlobalAlpha(1);
-                mobsLayer.beginPath();
-                mobsLayer.circle(mobCx, mobCy, highlightRadius);
-                mobsLayer.setLineWidth(1.0);
-                mobsLayer.setStrokeStyle('#00ff00');
-                mobsLayer.stroke();
-                
-                mobsLayer.setFillStyle('#00ff00');
-                mobsLayer.setFont('10px "Lucida Console", Monaco, monospace');
-                mobsLayer.setTextAlign('center');
-                mobsLayer.fillText(highlightMob.label, mobCx, mobCy - highlightRadius - 4);
-            }
         }
-    },
+        
+        // Draw the highlight if necessary
+        labelLayer.clear();
+        if (highlightMob) {
+            mobR = highlightMob.radius * scale;
+            var highlightRadius = Math.max(mobR + 4, 4);
+            mobCx = offsetX + highlightMob.x * scale;
+            mobCy = offsetY + highlightMob.y * scale;
+            
+            labelLayer.setGlobalAlpha(1);
+            labelLayer.beginPath();
+            labelLayer.circle(mobCx, mobCy, highlightRadius);
+            labelLayer.setLineWidth(1.0);
+            labelLayer.setStrokeStyle('#00ff00');
+            labelLayer.stroke();
+            
+            labelLayer.setFillStyle('#00ff00');
+            labelLayer.setFont('10px "Lucida Console", Monaco, monospace');
+            labelLayer.setTextAlign('center');
+            labelLayer.fillText(highlightMob.label, mobCx, mobCy - highlightRadius - 4);
+        }
+        
+        self.mobsLayer.redraw(vertexData);
+    }
 });

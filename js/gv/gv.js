@@ -46,7 +46,7 @@ gv = (function() {
         REACT_ONLY_THRESHOLD:1.0e21,
         
         // Makes all mobs larger
-        DENSITY_SCALING:8,
+        DENSITY_SCALING:1,
         
         // Used in volume of a sphere calculations.
         THREE_OVER_FOUR_PI:3 / (4 * Math.PI),
@@ -80,10 +80,10 @@ gv = (function() {
         },
         
         MOB_COLOR_BY_TYPE: {
-            star:'#ffff00',
-            planet:'#0099ff',
-            moon:'#ffcccc',
-            asteroid:'#cccccc'
+            star:    [1.0,  1.0,  0.0,  0.0],
+            planet:  [0.0,  0.5,  1.0,  0.0],
+            moon:    [1.0,  0.75, 0.75, 0.0],
+            asteroid:[0.75, 0.75, 0.75, 0.0]
         },
         
         circleIntersectsCircle: function(ax, ay, ar, bx, by, br) {

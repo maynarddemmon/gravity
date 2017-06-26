@@ -109,9 +109,9 @@ gv.App = new JS.Class('App', myt.View, {
             // Force a redraw if spacetime is not updating
             var GV = gv;
             if (!GV.spacetime.isRunning()) {
-                GV.map.redraw();
-                GV.shipMap.redraw();
-                GV.targetMap.redraw();
+                GV.map.forceUpdate();
+                GV.shipMap.forceUpdate();
+                GV.targetMap.forceUpdate();
             }
         }
     },

@@ -11,7 +11,8 @@ JS.Packages(function() {with(this) {
     file(GV_MODEL_ROOT + 'Spacetime.js').provides('gv.Spacetime').requires('gv.Mob');
     
     var GV_VIEW_ROOT = GV_ROOT + 'view/';
-    file(GV_VIEW_ROOT + 'Map.js').provides('gv.Map').requires('gv');
+    file(GV_VIEW_ROOT + 'WebGL.js').provides('gv.WebGL').requires('gv');
+    file(GV_VIEW_ROOT + 'Map.js').provides('gv.Map').requires('gv.WebGL');
     
     file(GV_ROOT + 'App.js').provides('gv.App').requires('gv.Map','gv.Spacetime');
     

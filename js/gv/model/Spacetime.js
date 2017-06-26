@@ -14,6 +14,8 @@ gv.Spacetime = new JS.Class('Spacetime', myt.Eventable, {
         this._allMobs = [];
         this._mobsById = {};
         
+        this._collisionCheckCount = 0;
+        
         this.callSuper(attrs);
     },
     
@@ -138,53 +140,26 @@ gv.Spacetime = new JS.Class('Spacetime', myt.Eventable, {
     // Main Loop
     /** @private */
     _loop: function() {
-        var self = this;
+        var self = this,
+            i, j, mobA, mobB, r1Squared, allMobs, allMobsLen, mobs,
+            dt = gv.SIMULATED_SECONDS_PER_TIME_SLICE;
         
-        // Lock in a time scale for the duration of this loop iteration.
-        this.dt = gv.SIMULATED_SECONDS_PER_TIME_SLICE;
-        
-        // Resolve collisions
-        var allMobs = self.getAllMobs(true),
-            mobsToCheck = self.getAllMobs(true),
-            mobToCheck, 
-            i, 
-            mob, 
-            newMob, r1Squared;
-        while (mobsToCheck.length) {
-            mobToCheck = mobsToCheck.shift();
-            r1Squared = mobToCheck.radiusSquared;
+        // Resolve collisions. Don't check collisions every time since this 
+        // is CPU intensive.
+        self._collisionCheckCount++;
+        if (self._collisionCheckCount === 4) {
+            self._collisionCheckCount = 0;
             
-            // Mob is destroyed because of an earlier collision so no need to
-            // check it
-            if (mobToCheck.destroyed) continue;
-            
-            // Walk backwards so we can splice out destroyed mobs.
-            i = allMobs.length;
-            while (i) {
-                mob = allMobs[--i];
-                
-                // Mob is destroyed from a previous collision so no need to
-                // check it.
-                if (mob.destroyed) {
-                    // Prevent rechecking this mob for subsequent mobs to check.
-                    allMobs.splice(i, 1);
-                    continue;
-                }
-                
-                if (mob !== mobToCheck) {
-                    // Check for collision
-                    if (mobToCheck.measureDistanceSquared(mob) < r1Squared + mob.radiusSquared) {
-                        newMob = mobToCheck.resolveCollision(mob);
-                        
-                        mobsToCheck.push(newMob);
-                        allMobs.push(newMob);
-                        
-                        // Premptively splice out the mob we were checking against
-                        // since it will definitely be destroyed
-                        allMobs.splice(i, 1);
-                        
-                        // Since a collision occured we can move on to the next
-                        // mob to check so break out of the while loop
+            allMobs = self.getAllMobs(true);
+            allMobsLen = allMobs.length;
+            for (i = 0; allMobsLen > i;) {
+                mobA = allMobs[i++];
+                r1Squared = mobA.radiusSquared;
+                for (j = i; allMobsLen > j; j++) {
+                    mobB = allMobs[j];
+                    if (mobA.measureDistanceSquared(mobB) < r1Squared + mobB.radiusSquared) {
+                        allMobs.push(mobA.resolveCollision(mobB));
+                        allMobs.splice(j, 1);
                         break;
                     }
                 }
@@ -192,13 +167,13 @@ gv.Spacetime = new JS.Class('Spacetime', myt.Eventable, {
         }
         
         // Calculate gravity forces
-        var mobs = self._mobs,
-            i = mobs.length,
-            allMobs = self.getAllMobs(),
-            j, mobA, mobB;
+        mobs = self._mobs;
+        i = mobs.length;
+        allMobs = self.getAllMobs();
+        allMobsLen = allMobs.length;
         while (i) {
             mobA = mobs[--i];
-            j = allMobs.length;
+            j = allMobsLen;
             while (j) {
                 mobB = allMobs[--j];
                 if (mobA !== mobB) mobB.incrementDeltaV(mobA);
@@ -206,7 +181,7 @@ gv.Spacetime = new JS.Class('Spacetime', myt.Eventable, {
         }
         
         // Update mob positions
-        j = allMobs.length;
-        while (j) allMobs[--j].applyDeltaV();
+        j = allMobsLen;
+        while (j) allMobs[--j].applyDeltaV(dt);
     }
 });
