@@ -21,15 +21,30 @@
 	//uniform float u_time;
 	
 	varying vec4 vColor;
+	varying float vType;
 	
 	void main(void) {
 		float r = 0.0, delta = 0.0, alpha = 1.0;
+		
+		// Shift point into a range of +/- 1.0
 		vec2 cxy = 2.0 * gl_PointCoord - 1.0;
+		
+		// Calculate how far the point is from the center
 		r = dot(cxy, cxy);
+	
 	#ifdef GL_OES_standard_derivatives
-		delta = fwidth(r);
-		alpha = 1.0 - smoothstep(1.0 - delta, 1.0 + delta, r);
+		if (vType < 0.1) {
+			// Used to make the edge of the circle smooth
+			delta = fwidth(r);
+			
+			// Circle with a smooth edge
+			alpha = 1.0 - smoothstep(1.0 - delta, 1.0, r);
+		} else {
+			// Fuzz ball
+			alpha = 1.0 - smoothstep(0.0, 1.0, r);
+		}
 	#endif
+		
 		gl_FragColor = vColor * alpha;
 	}
 </script>
@@ -37,10 +52,12 @@
 	attribute vec2 aVtxPosition;
 	attribute vec4 aVtxColor;
 	attribute float aVtxSize;
+	attribute float aVtxType;
 	
 	uniform vec2 u_resolution;
 	
 	varying vec4 vColor;
+	varying float vType;
 	
 	void main(void) {
 		// convert the position from pixels to 0.0 to 1.0
@@ -56,6 +73,7 @@
 		
 		gl_PointSize = aVtxSize;
 		vColor = aVtxColor;
+		vType = aVtxType;
 	}
 </script>
 <script src="./js/loader-browser.min.js"></script>

@@ -14,12 +14,8 @@ gv.Mob = new JS.Class('Mob', myt.Eventable, {
         self._id = myt.generateGuid();
         self.dvx = self.dvy = 0;
         
-        var mapCenter = attrs.mapCenter,
-            shipMapCenter = attrs.shipMapCenter,
-            targetMapCenter = attrs.targetMapCenter;
+        var mapCenter = attrs.mapCenter;
         delete attrs.mapCenter;
-        delete attrs.shipMapCenter;
-        delete attrs.targetMapCenter;
         
         self.callSuper(attrs);
         
@@ -27,8 +23,6 @@ gv.Mob = new JS.Class('Mob', myt.Eventable, {
         
         // Notify center status late
         if (mapCenter) self.setMapCenter(mapCenter);
-        if (shipMapCenter) self.setShipMapCenter(shipMapCenter);
-        if (targetMapCenter) self.setTargetMapCenter(targetMapCenter);
     },
     
     
@@ -57,12 +51,6 @@ gv.Mob = new JS.Class('Mob', myt.Eventable, {
     // Methods /////////////////////////////////////////////////////////////////
     setMapCenter: function(v) {if (v) gv.map.setCenterMob(this);},
     isMapCenter: function() {return gv.map.getCenterMob() === this;},
-    
-    setShipMapCenter: function(v) {if (v) gv.shipMap.setCenterMob(this);},
-    isShipMapCenter: function() {return gv.shipMap.getCenterMob() === this;},
-    
-    setTargetMapCenter: function(v) {if (v) gv.targetMap.setCenterMob(this);},
-    isTargetMapCenter: function() {return gv.targetMap.getCenterMob() === this;},
     
     getSpeed: function() {
         var vx = this.vx,
@@ -116,8 +104,6 @@ console.log('COLLISION!!!', mob.label, self.label);
                 vx:self.vx * massRatioA + mob.vx * massRatioB,
                 vy:self.vy * massRatioA + mob.vy * massRatioB,
                 mapCenter:self.isMapCenter() || mob.isMapCenter(),
-                shipMapCenter:self.isShipMapCenter() || mob.isShipMapCenter(),
-                targetMapCenter:self.isTargetMapCenter() || mob.isTargetMapCenter(),
                 label:selfIsMoreMassive ? self.label : mob.label,
                 type:selfIsMoreMassive ? self.type : mob.type
             }));

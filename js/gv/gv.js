@@ -46,10 +46,12 @@ gv = (function() {
         REACT_ONLY_THRESHOLD:1.0e21,
         
         // Makes all mobs larger
-        DENSITY_SCALING:1,
+        DENSITY_SCALING:8,
         
         // Used in volume of a sphere calculations.
         THREE_OVER_FOUR_PI:3 / (4 * Math.PI),
+        
+        SQRT_OF_2:Math.sqrt(2),
         
         // The gravitational constant
         G:6.674e-11,
@@ -66,23 +68,17 @@ gv = (function() {
         // A reference to the main gv.Map object
         map:null,
         
-        // A reference to the ship gv.Map object
-        shipMap:null,
-        
-        // A reference to the target gv.Map object
-        targetMap:null,
-        
         HALO_RADIUS_BY_TYPE: {
-            star:50,
-            planet:500,
-            moon:750,
-            asteroid:2500
+            star:200,
+            planet:1000,
+            moon:1000,
+            asteroid:5000
         },
         
         MOB_COLOR_BY_TYPE: {
             star:    [1.0,  1.0,  0.0,  0.0],
-            planet:  [0.0,  0.5,  1.0,  0.0],
-            moon:    [1.0,  0.75, 0.75, 0.0],
+            planet:  [0.0,  0.75, 1.0,  0.0],
+            moon:    [1.0,  1.0,  1.0,  0.0],
             asteroid:[0.75, 0.75, 0.75, 0.0]
         },
         

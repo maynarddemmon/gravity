@@ -30,25 +30,12 @@ gv.App = new JS.Class('App', myt.View, {
         var mapContainer = this.mapContainer = new M.View(self);
         
         GV.map = self.map = new GV.Map(mapContainer, {
-            scaleValue:20.2,
-            centerMob:spacetime.getMobByLabel('Sun'),
-            align:'right', valign:'top', alignOffset:4, valignOffset:4, expanded:true
-        });
-        
-        GV.shipMap = self.shipMap = new GV.Map(mapContainer, {
-            scaleValue:15.5,
-            centerMob:spacetime.getMobByLabel('Earth'),
-            align:'right', valign:'bottom', alignOffset:4, valignOffset:4
-        });
-        
-        GV.targetMap = self.targetMap = new GV.Map(mapContainer, {
-            scaleValue:15,
-            centerMob:spacetime.getMobByLabel('Luna'),
-            align:'left', valign:'bottom', alignOffset:4, valignOffset:4
+            scaleValue:14.2,
+            centerMob:spacetime.getMobByLabel('Earth')
         });
         
         // Controls
-        new GV.Slider(self, {x:5, y:5, width:160, value:13, minValue:0, maxValue:19}, [{
+        new GV.Slider(self, {x:5, y:5, width:200, value:14, minValue:0, maxValue:23}, [{
             setValue: function(v) {
                 this.callSuper(v);
                 
@@ -65,15 +52,19 @@ gv.App = new JS.Class('App', myt.View, {
                     case 8:  timeScale = 60 * 60; txt = '1 hr/sec'; break;
                     case 9:  timeScale = 60 * 60 * 2; txt = '2 hr/sec'; break;
                     case 10: timeScale = 60 * 60 * 3; txt = '3 hr/sec'; break;
-                    case 11: timeScale = 60 * 60 * 6; txt = '6 hr/sec'; break;
-                    case 12: timeScale = 60 * 60 * 12; txt = '12 hr/sec'; break;
-                    case 13: timeScale = 60 * 60 * 24; txt = '1 day/sec'; break;
-                    case 14: timeScale = 60 * 60 * 24 * 2; txt = '2 day/sec'; break;
-                    case 15: timeScale = 60 * 60 * 24 * 3; txt = '3 day/sec'; break;
-                    case 16: timeScale = 60 * 60 * 24 * 4; txt = '4 day/sec'; break;
-                    case 17: timeScale = 60 * 60 * 24 * 5; txt = '5 day/sec'; break;
-                    case 18: timeScale = 60 * 60 * 24 * 6; txt = '6 day/sec'; break;
-                    case 19: timeScale = 60 * 60 * 24 * 7; txt = '1 week/sec'; break;
+                    case 11: timeScale = 60 * 60 * 4; txt = '4 hr/sec'; break;
+                    case 12: timeScale = 60 * 60 * 5; txt = '5 hr/sec'; break;
+                    case 13: timeScale = 60 * 60 * 6; txt = '6 hr/sec'; break;
+                    case 14: timeScale = 60 * 60 * 8; txt = '8 hr/sec'; break;
+                    case 15: timeScale = 60 * 60 * 10; txt = '10 hr/sec'; break;
+                    case 16: timeScale = 60 * 60 * 12; txt = '12 hr/sec'; break;
+                    case 17: timeScale = 60 * 60 * 24; txt = '1 day/sec'; break;
+                    case 18: timeScale = 60 * 60 * 24 * 2; txt = '2 day/sec'; break;
+                    case 19: timeScale = 60 * 60 * 24 * 3; txt = '3 day/sec'; break;
+                    case 20: timeScale = 60 * 60 * 24 * 4; txt = '4 day/sec'; break;
+                    case 21: timeScale = 60 * 60 * 24 * 5; txt = '5 day/sec'; break;
+                    case 22: timeScale = 60 * 60 * 24 * 6; txt = '6 day/sec'; break;
+                    case 23: timeScale = 60 * 60 * 24 * 7; txt = '1 wk/sec'; break;
                 }
                 this.setText(txt);
                 if (timeScale > 0) {
@@ -108,11 +99,7 @@ gv.App = new JS.Class('App', myt.View, {
             
             // Force a redraw if spacetime is not updating
             var GV = gv;
-            if (!GV.spacetime.isRunning()) {
-                GV.map.forceUpdate();
-                GV.shipMap.forceUpdate();
-                GV.targetMap.forceUpdate();
-            }
+            if (!GV.spacetime.isRunning()) GV.map.forceUpdate();
         }
     },
     
@@ -125,24 +112,7 @@ gv.App = new JS.Class('App', myt.View, {
             size = Math.min(self.width, self.height);
         mapContainer.setWidth(size);
         mapContainer.setHeight(size);
-        self.map.updateSize();
-        self.shipMap.updateSize();
-        self.targetMap.updateSize();
-    },
-    
-    notifyMapExpansionChange: function(changedMap) {
-        var self = this,
-            maps = [self.map, self.shipMap, self.targetMap], 
-            i = 3, map;
-        if (changedMap.expanded) {
-            while (i) {
-                map = maps[--i];
-                if (changedMap !== map && map.expanded && !map.closed) {
-                    map.setExpanded(false);
-                    break;
-                }
-            }
-        }
+        self.map.setWidth(size);
     },
     
     /** @private */

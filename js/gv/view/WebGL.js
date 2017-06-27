@@ -9,6 +9,8 @@
 gv.WebGL = new JS.Class('WebGL', myt.View, {
     // Life Cycle //////////////////////////////////////////////////////////////
     initNode: function(parent, attrs) {
+        attrs.tagName = 'canvas';
+        
         this.callSuper(parent, attrs);
         
         // Only continue if WebGL is available and working
@@ -38,6 +40,7 @@ gv.WebGL = new JS.Class('WebGL', myt.View, {
                 this._initBuffer('aVtxPosition');
                 this._initBuffer('aVtxColor');
                 this._initBuffer('aVtxSize');
+                this._initBuffer('aVtxType');
             } else {
                 console.error('Unable to initialize the shader program: ' + gl.getProgramInfoLog(shaderProgram));
                 this.destroy();
@@ -73,17 +76,13 @@ gv.WebGL = new JS.Class('WebGL', myt.View, {
     
     /** @overrides myt.View */
     createOurDomElement: function(parent) {
-        var e = this.callSuper(parent);
-        
-        var canvas = this.__canvas = document.createElement('canvas');
+        var canvas = this.callSuper(parent);
         canvas.className = 'mytUnselectable';
-        e.appendChild(canvas);
-        canvas.style.position = 'absolute';
         
         // Try to grab the standard context. If it fails, fallback to experimental.
         this.gl = canvas.getContext('webgl') || canvas.getContext('experimental-webgl');
         
-        return e;
+        return canvas;
     },
     
     
@@ -93,7 +92,7 @@ gv.WebGL = new JS.Class('WebGL', myt.View, {
         See: http://www.whatwg.org/specs/web-apps/current-work/multipage/the-canvas-element.html#attr-canvas-width */
     setWidth: function(v, supressEvent) {
         if (0 > v) v = 0;
-        this.__canvas.setAttribute('width', v);
+        this.domElement.setAttribute('width', v);
         this.callSuper(v, supressEvent);
         if (this.inited) this.__updateSize();
     },
@@ -103,7 +102,7 @@ gv.WebGL = new JS.Class('WebGL', myt.View, {
         See: http://www.whatwg.org/specs/web-apps/current-work/multipage/the-canvas-element.html#attr-canvas-width */
     setHeight: function(v, supressEvent) {
         if (0 > v) v = 0;
-        this.__canvas.setAttribute('height', v);
+        this.domElement.setAttribute('height', v);
         this.callSuper(v, supressEvent);
         if (this.inited) this.__updateSize();
     },
@@ -115,20 +114,6 @@ gv.WebGL = new JS.Class('WebGL', myt.View, {
     
     
     // Methods /////////////////////////////////////////////////////////////////
-    /** Prevent views from being sent behind the __canvas. This allows us to
-        add child views to a Canvas which is not directly supported in HTML.
-        @overrides myt.View */
-    sendSubviewToBack: function(sv) {
-        if (sv.parent === this) {
-            var de = this.domElement,
-                firstChild = de.childNodes[1];
-            if (sv.domElement !== firstChild) {
-                var removedElem = de.removeChild(sv.domElement);
-                if (removedElem) de.insertBefore(removedElem, firstChild);
-            }
-        }
-    },
-    
     redraw: function(data) {
         var gl = this.gl,
             shaderProgram = this.shaderProgram;
@@ -145,6 +130,7 @@ gv.WebGL = new JS.Class('WebGL', myt.View, {
             this._vertexAttributePointer('aVtxPosition', data.position, 2);
             this._vertexAttributePointer('aVtxSize', data.size, 1);
             this._vertexAttributePointer('aVtxColor', data.color, 4);
+            this._vertexAttributePointer('aVtxType', data.renderType, 1);
             
             // Draw
             gl.drawArrays(gl.POINTS, 0, data.count);
