@@ -7,17 +7,24 @@
         None
 */
 gv.App = new JS.Class('App', myt.View, {
-    include: [myt.SizeToWindow],
+    include: [myt.SizeToWindow, myt.KeyActivation],
     
     
     // Life Cycle //////////////////////////////////////////////////////////////
     initNode: function(parent, attrs) {
+        // How many seconds occur in the simulation during one time slice. Will
+        // be updated when the time slider gets set via this.updateTimeScaling.
+        this.simulatedSecondsPerTimeSlice = null;
+        
         var self = this,
             M = myt,
             GV = gv;
         
         attrs.bgColor = '#003300';
         attrs.minWidth = attrs.minHeight = 600;
+        attrs.focusable = true;
+        attrs.focusEmbellishment = false;
+        attrs.activationKeys = [37,38,39,40];
         
         self.callSuper(parent, attrs);
         GV.app = self;
@@ -27,15 +34,13 @@ gv.App = new JS.Class('App', myt.View, {
         self._buildSolarSystem(spacetime);
         
         // Build UI
-        var mapContainer = this.mapContainer = new M.View(self);
-        
-        GV.map = self.map = new GV.Map(mapContainer, {
-            scaleValue:14.2,
-            centerMob:spacetime.getMobByLabel('Earth')
+        GV.map = self.map = new GV.Map(self, {
+            scaleValue:9.21, // 14.2 earth/moon
+            centerMob:spacetime.getMobByLabel('Spaceship')
         });
         
         // Controls
-        new GV.Slider(self, {x:5, y:5, width:200, value:14, minValue:0, maxValue:23}, [{
+        new GV.Slider(self, {x:5, y:5, width:200, value:5, minValue:0, maxValue:19}, [{
             setValue: function(v) {
                 this.callSuper(v);
                 
@@ -49,26 +54,22 @@ gv.App = new JS.Class('App', myt.View, {
                     case 5:  timeScale = 60 * 5; txt = '5 min/sec'; break;
                     case 6:  timeScale = 60 * 15; txt = '15 min/sec'; break;
                     case 7:  timeScale = 60 * 30; txt = '30 min/sec'; break;
-                    case 8:  timeScale = 60 * 60; txt = '1 hr/sec'; break;
-                    case 9:  timeScale = 60 * 60 * 2; txt = '2 hr/sec'; break;
-                    case 10: timeScale = 60 * 60 * 3; txt = '3 hr/sec'; break;
-                    case 11: timeScale = 60 * 60 * 4; txt = '4 hr/sec'; break;
-                    case 12: timeScale = 60 * 60 * 5; txt = '5 hr/sec'; break;
-                    case 13: timeScale = 60 * 60 * 6; txt = '6 hr/sec'; break;
-                    case 14: timeScale = 60 * 60 * 8; txt = '8 hr/sec'; break;
-                    case 15: timeScale = 60 * 60 * 10; txt = '10 hr/sec'; break;
-                    case 16: timeScale = 60 * 60 * 12; txt = '12 hr/sec'; break;
-                    case 17: timeScale = 60 * 60 * 24; txt = '1 day/sec'; break;
-                    case 18: timeScale = 60 * 60 * 24 * 2; txt = '2 day/sec'; break;
-                    case 19: timeScale = 60 * 60 * 24 * 3; txt = '3 day/sec'; break;
-                    case 20: timeScale = 60 * 60 * 24 * 4; txt = '4 day/sec'; break;
-                    case 21: timeScale = 60 * 60 * 24 * 5; txt = '5 day/sec'; break;
-                    case 22: timeScale = 60 * 60 * 24 * 6; txt = '6 day/sec'; break;
-                    case 23: timeScale = 60 * 60 * 24 * 7; txt = '1 wk/sec'; break;
+                    case 8:  timeScale = 60 * 45; txt = '45 min/sec'; break;
+                    case 9:  timeScale = 60 * 60; txt = '1 hr/sec'; break;
+                    case 10:  timeScale = 60 * 60 * 1.5; txt = '1.5 hr/sec'; break;
+                    case 11:  timeScale = 60 * 60 * 2; txt = '2 hr/sec'; break;
+                    case 12: timeScale = 60 * 60 * 3; txt = '3 hr/sec'; break;
+                    case 13: timeScale = 60 * 60 * 4; txt = '4 hr/sec'; break;
+                    case 14: timeScale = 60 * 60 * 5; txt = '5 hr/sec'; break;
+                    case 15: timeScale = 60 * 60 * 6; txt = '6 hr/sec'; break;
+                    case 16: timeScale = 60 * 60 * 8; txt = '8 hr/sec'; break;
+                    case 17: timeScale = 60 * 60 * 10; txt = '10 hr/sec'; break;
+                    case 18: timeScale = 60 * 60 * 12; txt = '12 hr/sec'; break;
+                    case 19: timeScale = 60 * 60 * 24; txt = '1 day/sec'; break;
                 }
                 this.setText(txt);
                 if (timeScale > 0) {
-                    GV.updateTimeScaling(timeScale);
+                    self._updateTimeScaling(timeScale);
                     spacetime.start();
                 } else {
                     spacetime.stop();
@@ -79,6 +80,8 @@ gv.App = new JS.Class('App', myt.View, {
         self._updateSize();
         
         global.hideSpinner();
+        
+        self.focus();
     },
     
     
@@ -103,15 +106,55 @@ gv.App = new JS.Class('App', myt.View, {
         }
     },
     
+    setPlayerShip: function(v) {
+        if (v !== this._playerShip) this._playerShip = v;
+    },
+    getPlayerShip: function() {return this._playerShip;},
+    
+    setSimulatedSecondsPerTimeSlice: function(v) {
+        this.simulatedSecondsPerTimeSlice = v;
+    },
+    
     
     // Methods /////////////////////////////////////////////////////////////////
+    doActivationKeyDown: function(key, isRepeat) {
+        var ship = this.getPlayerShip();
+        if (ship) {
+            switch (key) {
+                case 37: // Left
+                    ship.rotateLeft();
+                    break;
+                case 38: // Up
+                    ship.increaseThrust();
+                    break;
+                case 39: // Right
+                    ship.rotateRight();
+                    break;
+                case 40: // Down
+                    ship.decreaseThrust();
+                    break;
+            }
+        }
+    },
+    
+    doActivationKeyUp: function(key) {
+        // Do nothing since we don't actually have anything to activate.
+    },
+    
+    /** @private */
+    _updateTimeScaling: function(v) {
+        this.stopActiveAnimators('simulatedSecondsPerTimeSlice');
+        this.animate({
+            attribute:'simulatedSecondsPerTimeSlice',
+            to:gv.MILLIS_PER_CALC / 1000 * v,
+            duration:500
+        });
+    },
+    
     /** @private */
     _updateSize: function() {
         var self = this,
-            mapContainer = self.mapContainer,
             size = Math.min(self.width, self.height);
-        mapContainer.setWidth(size);
-        mapContainer.setHeight(size);
         self.map.setWidth(size);
     },
     
@@ -335,6 +378,22 @@ gv.App = new JS.Class('App', myt.View, {
             GV.giveMobCircularOrbit(asteroid, sun, M.getRandomArbitrary(lowerRange, upperRange), M.getRandomArbitrary(0, 2*PI));
             mobs.push(asteroid);
         }
+        
+        // Other Stars
+        /*var LIGHT_YEAR = 9.461e15;
+        
+        var proximaCentauri = new GV.Mob({x:4.24 * LIGHT_YEAR, y:0, vx:0, vy:0, mass:2.446e29, density:5680, type:'star', label:'Proxima Centauri'});
+        mobs.push(proximaCentauri);
+        */
+        
+        // Ships
+        var ship = new GV.Ship({playerShip:true, mass:1.0e6, density:100, label:'Spaceship'});
+        GV.giveMobCircularOrbit(ship, earth, 1.30e7, 0);
+        mobs.push(ship);
+        
+        var ship2 = new GV.Ship({mass:1.0e6, density:100, label:'Spaceship 2'});
+        GV.giveMobCircularOrbit(ship2, earth, 1.31e7, 0);
+        mobs.push(ship2);
         
         spacetime.bulkAddMob(mobs);
     }

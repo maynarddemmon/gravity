@@ -23,24 +23,10 @@
  */
 gv = (function() {
     var timeSlicesPerSecond = 60,
-        millisPerCalc = Math.ceil(1000 / timeSlicesPerSecond),
-        secondsPerCalc = millisPerCalc / 1000;
-    
+        millisPerCalc = Math.ceil(1000 / timeSlicesPerSecond);
     return {
-        // How many times the simulation is recalculated per real second.
-        TIME_SLICES_PER_SECOND:timeSlicesPerSecond,
-        
         // How many millis occur during one time slice.
         MILLIS_PER_CALC:millisPerCalc,
-        
-        // How many seconds occur during one time slice.
-        SECONDS_PER_CALC:secondsPerCalc,
-        
-        SIMULATED_SECONDS_PER_TIME_SLICE:null, // Will be updated when the time slider gets set via this.updateTimeScaling.
-        
-        updateTimeScaling: function(v) {
-            this.SIMULATED_SECONDS_PER_TIME_SLICE = this.SECONDS_PER_CALC * v;
-        },
         
         // React only mass theshold
         REACT_ONLY_THRESHOLD:1.0e21,
@@ -72,14 +58,16 @@ gv = (function() {
             star:200,
             planet:1000,
             moon:1000,
-            asteroid:5000
+            asteroid:5000,
+            ship:5000
         },
         
         MOB_COLOR_BY_TYPE: {
-            star:    [1.0,  1.0,  0.0,  0.0],
-            planet:  [0.0,  0.75, 1.0,  0.0],
-            moon:    [1.0,  1.0,  1.0,  0.0],
-            asteroid:[0.75, 0.75, 0.75, 0.0]
+            star:    [ 1.0,  1.0,  0.0, 0.0],
+            planet:  [ 0.0, 0.75,  1.0, 0.0],
+            moon:    [ 1.0,  1.0,  1.0, 0.0],
+            asteroid:[0.75, 0.75, 0.75, 0.0],
+            ship:    [ 0.0,  1.0,  0.0, 0.0]
         },
         
         circleIntersectsCircle: function(ax, ay, ar, bx, by, br) {

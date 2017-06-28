@@ -17,7 +17,7 @@ gv.Map = new JS.Class('Map', myt.View, {
         
         self.wheelX = 0;
         self.wheelY = scaleValue * wheelSpeed;
-        self._maxScaleExponent = 26;
+        self._maxScaleExponent = 32.5;
         self.distanceScale = 1;
         
         attrs.bgColor = '#000000';
@@ -108,7 +108,7 @@ gv.Map = new JS.Class('Map', myt.View, {
     _handleWheel: function(event) {
         // Limit wheel Y to the allowed exponential values
         var self = this;
-        self.wheelY = Math.min(Math.max(0, self.wheelY + event.value.deltaY), self._maxScaleExponent * self._wheelSpeed);
+        self.wheelY = Math.min(Math.max(-235, self.wheelY + event.value.deltaY), self._maxScaleExponent * self._wheelSpeed);
         self._updateDistanceScale();
     },
     
@@ -116,27 +116,28 @@ gv.Map = new JS.Class('Map', myt.View, {
     _updateDistanceScale: function() {
         var newScale = Math.exp(this.wheelY / this._wheelSpeed), 
             unit, value;
+        
         this.setDistanceScale(1 / newScale);
         
         // Clean up value for display
         if (newScale >= 100000000) {
             newScale /= gv.AU;
-            unit = 'au';
+            unit = 'astronomical units';
             value = newScale.toFixed(4);
         } else if (newScale >= 1000000) {
             newScale /= 1000000;
-            unit = 'Mm';
+            unit = 'megameters';
             value = newScale.toFixed(2);
         } else if (newScale >= 1000) {
             newScale /= 1000;
-            unit = 'km';
+            unit = 'kilometers';
             value = newScale.toFixed(2);
         } else {
-            unit = 'm';
+            unit = 'meters';
             value = newScale.toFixed(2);
         }
         
-        this.scaleLabel.setText(value + ' ' + unit + '/px');
+        this.scaleLabel.setText(value + ' ' + unit + '/pixel');
     },
     
     /** @private */
@@ -197,11 +198,16 @@ gv.Map = new JS.Class('Map', myt.View, {
             
             labelLayer = self.labelLayer,
             
+            canvasMobs = [],
+            canvasMobsLen,
+            mobInfo,
+            
             // Use two data accumulators to avoid prepending and concating large
             // arrays since that gets CPU intensive.
             haloData = {
                 count:0,
                 position:[],
+                rotation:[],
                 size:[],
                 color:[],
                 renderType:[]
@@ -209,12 +215,13 @@ gv.Map = new JS.Class('Map', myt.View, {
             mobData = {
                 count:0,
                 position:[],
+                rotation:[],
                 size:[],
                 color:[],
                 renderType:[]
             };
         
-        function appendTo(data, x, y, size, color, alpha, renderType) {
+        function appendTo(data, x, y, rotation, size, color, alpha, renderType) {
             // No need to render what can't be seen.
             if (alpha === 0) return;
             
@@ -230,6 +237,7 @@ gv.Map = new JS.Class('Map', myt.View, {
             }
             
             data.position.push(x, y);
+            data.rotation.push(rotation);
             data.size.push(size);
             data.renderType.push(renderType);
             data.count++;
@@ -238,6 +246,7 @@ gv.Map = new JS.Class('Map', myt.View, {
         while (i) {
             mob = mobs[--i];
             type = mob.type;
+            rotation = mob.angle;
             
             mobR = mob.radius * scale;
             mobHaloR = Math.max(4, mobR * HALO_RADIUS_BY_TYPE[type]);
@@ -248,27 +257,43 @@ gv.Map = new JS.Class('Map', myt.View, {
             // Don't draw halos or mobs that do not intersect the map
             if (cicFunc(halfMapSize, halfMapSize, centerToCornerMapSize, mobCx, mobCy, mobHaloR)) {
                 color = MOB_COLOR_BY_TYPE[type];
-                appendTo(haloData, mobCx, mobCy, 2 * mobHaloR, color, Math.max(0, 0.5 - (mobHaloR / (8 * mapSize))), 1);
+                appendTo(haloData, mobCx, mobCy, rotation, 2 * mobHaloR, color, Math.max(0, 0.5 - (mobHaloR / (8 * mapSize))), 1);
                 
                 // Don't draw mobs that are too small to see
                 if (mobR > 0.25) {
                     // Don't draw mobs that do not intersect the map
                     if (cicFunc(halfMapSize, halfMapSize, centerToCornerMapSize, mobCx, mobCy, mobR)) {
-                        appendTo(mobData, mobCx, mobCy, 2 * mobR, color, 1, 0);
+                        // Draw large mobs on the canvas since webgl won't draw points that large.
+                        if (mobR > 1000) {
+                            canvasMobs.push([mobCx, mobCy, rotation, mobR, color]);
+                        } else {
+                            appendTo(mobData, mobCx, mobCy, rotation, 2 * mobR, color, 1, type === 'ship' ? 2 : 0);
+                        }
                     }
                 }
             }
         }
         
-        // Draw the highlight if necessary
         labelLayer.clear();
+        
+        // Draw canvas mobs if necessary
+        canvasMobsLen = canvasMobs.length;
+        while (canvasMobsLen) {
+            mobInfo = canvasMobs[--canvasMobsLen];
+            
+            labelLayer.beginPath();
+            labelLayer.circle(mobInfo[0], mobInfo[1], mobInfo[3]);
+            labelLayer.setFillStyle(self.convertColorToHex(mobInfo[4]));
+            labelLayer.fill();
+        }
+        
+        // Draw the highlight if necessary
         if (highlightMob) {
             mobR = highlightMob.radius * scale;
             var highlightRadius = Math.max(mobR + 4, 4);
             mobCx = offsetX + highlightMob.x * scale;
             mobCy = offsetY + highlightMob.y * scale;
             
-            labelLayer.setGlobalAlpha(1);
             labelLayer.beginPath();
             labelLayer.circle(mobCx, mobCy, highlightRadius);
             labelLayer.setLineWidth(1.0);
@@ -283,6 +308,7 @@ gv.Map = new JS.Class('Map', myt.View, {
         
         // Combine Data Accumulators
         haloData.position = haloData.position.concat(mobData.position);
+        haloData.rotation = haloData.rotation.concat(mobData.rotation);
         haloData.size = haloData.size.concat(mobData.size);
         haloData.color = haloData.color.concat(mobData.color);
         haloData.renderType = haloData.renderType.concat(mobData.renderType);
@@ -290,5 +316,9 @@ gv.Map = new JS.Class('Map', myt.View, {
         
         // Redraw
         self._mobsLayer.redraw(haloData);
+    },
+    
+    convertColorToHex: function(v) {
+        return myt.Color.rgbToHex(v[0] * 255, v[1] * 255, v[2] * 255, true);
     }
 });

@@ -51,7 +51,7 @@ gv.Spacetime = new JS.Class('Spacetime', myt.Eventable, {
             distance, nearestDistance, nearestMob;
         while (i) {
             mob = mobs[--i];
-            distance = mob.measureDistanceSquared(pos);
+            distance = mob.measureDistanceSquared(pos) - mob.radiusSquared;
             if (distance < nearestDistance || !nearestMob) {
                 nearestDistance = distance;
                 nearestMob = mob;
@@ -142,7 +142,7 @@ gv.Spacetime = new JS.Class('Spacetime', myt.Eventable, {
     _loop: function() {
         var self = this,
             i, j, mobA, mobB, r1Squared, allMobs, allMobsLen, mobs,
-            dt = gv.SIMULATED_SECONDS_PER_TIME_SLICE;
+            dt = gv.app.simulatedSecondsPerTimeSlice;
         
         // Resolve collisions. Don't check collisions every time since this 
         // is CPU intensive.

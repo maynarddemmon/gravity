@@ -12,7 +12,7 @@ gv.Mob = new JS.Class('Mob', myt.Eventable, {
         var self = this;
         
         self._id = myt.generateGuid();
-        self.dvx = self.dvy = 0;
+        self.dvx = self.dvy = self.va = self.angle = 0;
         
         var mapCenter = attrs.mapCenter;
         delete attrs.mapCenter;
@@ -43,9 +43,11 @@ gv.Mob = new JS.Class('Mob', myt.Eventable, {
     
     setX: function(x) {this.x = x;},
     setY: function(y) {this.y = y;},
+    setAngle: function(a) {this.a = a;},
     
     setVx: function(vx) {this.vx = vx;},
     setVy: function(vy) {this.vy = vy;},
+    setVa: function(va) {this.va = va;},
     
     
     // Methods /////////////////////////////////////////////////////////////////
@@ -89,6 +91,7 @@ gv.Mob = new JS.Class('Mob', myt.Eventable, {
         spacetime.removeMob(mob);
         
 console.log('COLLISION!!!', mob.label, self.label);
+console.log(mob.measureDistanceSquared(self) - mob.radiusSquared - self.radiusSquared, mob.measureDistance(self) - mob.radius - self.radius)
         // Make a new mob
         var massA = self.mass,
             massB = mob.mass,
@@ -132,6 +135,9 @@ console.log('COLLISION!!!', mob.label, self.label);
         // Update Position
         self.x += vx * dt;
         self.y += vy * dt;
+        
+        // Update Rotation
+        self.angle = (self.angle + self.va * dt) % (2*Math.PI);
         
         // Reset
         self.dvx = self.dvy = 0;

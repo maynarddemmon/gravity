@@ -8,7 +8,8 @@ JS.Packages(function() {with(this) {
     
     var GV_MODEL_ROOT = GV_ROOT + 'model/';
     file(GV_MODEL_ROOT + 'Mob.js').provides('gv.Mob').requires('gv');
-    file(GV_MODEL_ROOT + 'Spacetime.js').provides('gv.Spacetime').requires('gv.Mob');
+    file(GV_MODEL_ROOT + 'Ship.js').provides('gv.Ship').requires('gv.Mob');
+    file(GV_MODEL_ROOT + 'Spacetime.js').provides('gv.Spacetime').requires('gv.Ship');
     
     var GV_VIEW_ROOT = GV_ROOT + 'view/';
     file(GV_VIEW_ROOT + 'WebGL.js').provides('gv.WebGL').requires('gv');

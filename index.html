@@ -14,6 +14,9 @@
 	#extension GL_OES_standard_derivatives : enable
 	#endif
 	
+	#define PI 3.14159265359
+	#define TWO_PI 6.28318530718
+	
 	precision mediump float;
 	
 	//uniform vec2 u_resolution;
@@ -22,34 +25,48 @@
 	
 	varying vec4 vColor;
 	varying float vType;
+	varying float vRotation;
 	
 	void main(void) {
-		float r = 0.0, delta = 0.0, alpha = 1.0;
+		float r = 0.0, alpha = 1.0, lower = 0.0, upper = 1.0;
 		
 		// Shift point into a range of +/- 1.0
 		vec2 cxy = 2.0 * gl_PointCoord - 1.0;
-		
-		// Calculate how far the point is from the center
-		r = dot(cxy, cxy);
 	
 	#ifdef GL_OES_standard_derivatives
 		if (vType < 0.1) {
-			// Used to make the edge of the circle smooth
-			delta = fwidth(r);
+			// Render Type 0: Smooth Circle
 			
-			// Circle with a smooth edge
-			alpha = 1.0 - smoothstep(1.0 - delta, 1.0, r);
+			// Calculate how far the point is from the center
+			r = dot(cxy, cxy);
+			lower = 1.0 - fwidth(r);
+			upper = 1.0;
+		} else if (vType < 1.1) {
+			// Render Type 1: Fuzzy Circle
+			
+			// Calculate how far the point is from the center
+			r = dot(cxy, cxy);
 		} else {
-			// Fuzz ball
-			alpha = 1.0 - smoothstep(0.0, 1.0, r);
+			// Render Type 2: Triangle
+			
+			// Shaping function that modulate the distance
+			float a = atan(cxy.x, cxy.y) + PI + vRotation;
+			float k = TWO_PI / 3.0; // 3 sides
+			r = cos(floor(0.5 + a / k) * k - a) * length(cxy);
+			lower = 0.5 - fwidth(r);
+			upper = 0.5;
 		}
 	#endif
+		alpha = 1.0 - smoothstep(lower, upper, r);
 		
 		gl_FragColor = vColor * alpha;
 	}
 </script>
 <script id="shader-vertex" type="x-shader/x-vertex">
+	precision mediump float;
+	
 	attribute vec2 aVtxPosition;
+	attribute float aVtxRotation;
 	attribute vec4 aVtxColor;
 	attribute float aVtxSize;
 	attribute float aVtxType;
@@ -58,22 +75,16 @@
 	
 	varying vec4 vColor;
 	varying float vType;
+	varying float vRotation;
 	
 	void main(void) {
-		// convert the position from pixels to 0.0 to 1.0
-		vec2 zeroToOne = aVtxPosition / u_resolution;
-		
-		// convert from 0->1 to 0->2
-		vec2 zeroToTwo = zeroToOne * 2.0;
-		
-		// convert from 0->2 to -1->+1 (clipspace)
-		vec2 clipSpace = zeroToTwo - 1.0;
-		
-		gl_Position = vec4(clipSpace * vec2(1, -1), 0.0, 1.0);
-		
+		// convert the position from pixels to 0.0 to 1.0 then
+		// convert from 0->1 to -1->+1 (clipspace) finally flip y axis
+		gl_Position = vec4(((aVtxPosition / u_resolution) * 2.0 - 1.0) * vec2(1, -1), 0.0, 1.0);
 		gl_PointSize = aVtxSize;
 		vColor = aVtxColor;
 		vType = aVtxType;
+		vRotation = aVtxRotation;
 	}
 </script>
 <script src="./js/loader-browser.min.js"></script>

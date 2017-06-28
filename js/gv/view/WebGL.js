@@ -38,6 +38,7 @@ gv.WebGL = new JS.Class('WebGL', myt.View, {
                 
                 // Init buffers
                 this._initBuffer('aVtxPosition');
+                this._initBuffer('aVtxRotation');
                 this._initBuffer('aVtxColor');
                 this._initBuffer('aVtxSize');
                 this._initBuffer('aVtxType');
@@ -128,6 +129,7 @@ gv.WebGL = new JS.Class('WebGL', myt.View, {
             
             // Provide attributes to vertext shader
             this._vertexAttributePointer('aVtxPosition', data.position, 2);
+            this._vertexAttributePointer('aVtxRotation', data.rotation, 1);
             this._vertexAttributePointer('aVtxSize', data.size, 1);
             this._vertexAttributePointer('aVtxColor', data.color, 4);
             this._vertexAttributePointer('aVtxType', data.renderType, 1);
