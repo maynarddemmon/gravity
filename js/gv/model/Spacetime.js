@@ -51,13 +51,12 @@ gv.Spacetime = new JS.Class('Spacetime', myt.Eventable, {
             distance, nearestDistance, nearestMob;
         while (i) {
             mob = mobs[--i];
-            distance = mob.measureDistanceSquared(pos) - mob.radiusSquared;
+            distance = mob.measureDistance(pos) - mob.radius;
             if (distance < nearestDistance || !nearestMob) {
                 nearestDistance = distance;
                 nearestMob = mob;
             }
         }
-        
         return nearestMob
     },
     
@@ -141,7 +140,7 @@ gv.Spacetime = new JS.Class('Spacetime', myt.Eventable, {
     /** @private */
     _loop: function() {
         var self = this,
-            i, j, mobA, mobB, r1Squared, allMobs, allMobsLen, mobs,
+            i, j, mobA, mobB, r1, collisionDistance, allMobs, allMobsLen, mobs,
             dt = gv.app.simulatedSecondsPerTimeSlice;
         
         // Resolve collisions. Don't check collisions every time since this 
@@ -154,10 +153,11 @@ gv.Spacetime = new JS.Class('Spacetime', myt.Eventable, {
             allMobsLen = allMobs.length;
             for (i = 0; allMobsLen > i;) {
                 mobA = allMobs[i++];
-                r1Squared = mobA.radiusSquared;
+                r1 = mobA.radius;
                 for (j = i; allMobsLen > j; j++) {
                     mobB = allMobs[j];
-                    if (mobA.measureDistanceSquared(mobB) < r1Squared + mobB.radiusSquared) {
+                    collisionDistance = r1 + mobB.radius;
+                    if (mobA.measureDistanceSquared(mobB) < collisionDistance * collisionDistance) {
                         allMobs.push(mobA.resolveCollision(mobB));
                         allMobs.splice(j, 1);
                         break;

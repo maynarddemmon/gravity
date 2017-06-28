@@ -5,29 +5,38 @@
     
     Attributes:
         None
+    
+    Private Attributes:
+        _wheelX
+        _wheelY
+        _wheelSpeed
+        _distanceScale
+        _inverseDistanceScale
+        _halfMapSize
 */
 gv.Map = new JS.Class('Map', myt.View, {
     // Life Cycle //////////////////////////////////////////////////////////////
     initNode: function(parent, attrs) {
         var self = this,
-            M = myt,
-            scaleValue = attrs.scaleValue;
-            wheelSpeed = self._wheelSpeed = 100;
-        delete attrs.scaleValue;
+            M = myt;
         
-        self.wheelX = 0;
-        self.wheelY = scaleValue * wheelSpeed;
-        self._maxScaleExponent = 32.5;
-        self.distanceScale = 1;
+        self._MAX_SCALE_EXPONENT = 32.5;
+        
+        self._wheelSpeed = 100;
+        self._wheelX = 0;
+        self._wheelY = attrs.scaleValue * self._wheelSpeed;
+        self._distanceScale = self._inverseDistanceScale = 1;
+        self._halfMapSize = 0;
         
         attrs.bgColor = '#000000';
+        delete attrs.scaleValue;
         
         self.callSuper(parent, attrs);
         
         self._mobsLayer = new gv.WebGL(self);
-        self.labelLayer = new M.Canvas(self);
-        self.scaleLabel = new M.Text(self, {align:'center', y:7, fontSize:'10px', textColor:'#00ff00'});
-        self.centerMobLabel = new M.Text(self, {align:'center', y:19, fontSize:'10px', textColor:'#00ff00'});
+        self._labelLayer = new M.Canvas(self);
+        self._scaleLabel = new M.Text(self, {align:'center', y:7, fontSize:'10px', textColor:'#00ff00'});
+        self._centerMobLabel = new M.Text(self, {align:'center', y:19, fontSize:'10px', textColor:'#00ff00'});
         
         self.attachToDom(self, '_handleWheel', 'wheel');
         self.attachToDom(self, '_handleMove', 'mousemove');
@@ -52,19 +61,29 @@ gv.Map = new JS.Class('Map', myt.View, {
     },
     getCenterMob: function() {return this._centerMob;},
     
-    setDistanceScale: function(v) {
-        if (v !== this.distanceScale) {
-            this.distanceScale = v;
-            if (this.inited) this.forceUpdate();
-        }
-    },
-    
     setWidth:function(v, supressEvent) {
+        // Ensure an even integer value since things looks better this way.
         v = Math.round(v);
         if (v % 2 === 1) v += 1;
         
         this.callSuper(v, supressEvent);
-        if (this.inited) this._updateWidth();
+        
+        if (this.inited) {
+            var self = this,
+                w = self.width,
+                labelLayer = self._labelLayer,
+                mobsLayer = self._mobsLayer;
+            
+            self.setHeight(w);
+            mobsLayer.setWidth(w);
+            mobsLayer.setHeight(w);
+            labelLayer.setWidth(w);
+            labelLayer.setHeight(w);
+            
+            self._halfMapSize = w / 2;
+            
+            self.forceUpdate();
+        }
     },
     
     
@@ -72,7 +91,7 @@ gv.Map = new JS.Class('Map', myt.View, {
     /** @private */
     _updateCenterMobLabel: function() {
         var mob = this.getCenterMob();
-        this.centerMobLabel.setText(mob ? mob.label : '');
+        this._centerMobLabel.setText(mob ? mob.label : '');
     },
     
     /** @private */
@@ -83,21 +102,20 @@ gv.Map = new JS.Class('Map', myt.View, {
     
     /** @private */
     _handleMove: function(event) {
-        var GV = gv,
-            pos = myt.MouseObservable.getMouseFromEventRelativeToView(event, this._mobsLayer),
-            nearestMob = GV.spacetime.getNearestMob(this._convertPixelsToMeters(pos));
-        GV.app.setHighlightMob(nearestMob);
+        var pos = myt.MouseObservable.getMouseFromEventRelativeToView(event, this._mobsLayer);
+        gv.app.setHighlightMob(gv.spacetime.getNearestMob(this._convertPixelsToMeters(pos)));
         
         // Used for shader drawing by mouse position
         //this._mobsLayer.mouseX = pos.x;
         //this._mobsLayer.mouseY = pos.y;
     },
     
-    /** @private */
+    /** Converts a position in pixels into a position in spacetime meters.
+        @private */
     _convertPixelsToMeters: function(pos) {
         var centerMob = this.getCenterMob() || {x:0, y:0},
-            inverseScale = 1 / this.distanceScale,
-            halfMapSize = this.width / 2;
+            inverseScale = this._inverseDistanceScale,
+            halfMapSize = this._halfMapSize;
         return {
             x:(pos.x - halfMapSize) * inverseScale + centerMob.x, 
             y:(pos.y - halfMapSize) * inverseScale + centerMob.y
@@ -108,16 +126,22 @@ gv.Map = new JS.Class('Map', myt.View, {
     _handleWheel: function(event) {
         // Limit wheel Y to the allowed exponential values
         var self = this;
-        self.wheelY = Math.min(Math.max(-235, self.wheelY + event.value.deltaY), self._maxScaleExponent * self._wheelSpeed);
+        self._wheelY = Math.min(Math.max(-235, self._wheelY + event.value.deltaY), self._MAX_SCALE_EXPONENT * self._wheelSpeed);
         self._updateDistanceScale();
     },
     
     /** @private */
     _updateDistanceScale: function() {
-        var newScale = Math.exp(this.wheelY / this._wheelSpeed), 
+        var newScale = Math.exp(this._wheelY / this._wheelSpeed), 
             unit, value;
         
-        this.setDistanceScale(1 / newScale);
+        // Set distance scale
+        var scale = 1 / newScale;
+        if (scale !== this._distanceScale) {
+            this._distanceScale = scale;
+            this._inverseDistanceScale = 1 / scale;
+            if (this.inited) this.forceUpdate();
+        }
         
         // Clean up value for display
         if (newScale >= 100000000) {
@@ -137,24 +161,7 @@ gv.Map = new JS.Class('Map', myt.View, {
             value = newScale.toFixed(2);
         }
         
-        this.scaleLabel.setText(value + ' ' + unit + '/pixel');
-    },
-    
-    /** @private */
-    _updateWidth: function() {
-        var w = this.width,
-            labelLayer = this.labelLayer,
-            mobsLayer = this._mobsLayer;
-        
-        this.setHeight(w);
-        
-        mobsLayer.setWidth(w);
-        mobsLayer.setHeight(w);
-        
-        labelLayer.setWidth(w);
-        labelLayer.setHeight(w);
-        
-        this.forceUpdate();
+        this._scaleLabel.setText(value + ' ' + unit + '/pixel');
     },
     
     /** Redraw when spacetime is running.
@@ -173,12 +180,12 @@ gv.Map = new JS.Class('Map', myt.View, {
     _redraw: function() {
         // Redraw mobs layer
         var self = this,
-            mapSize = self.width;
+            halfMapSize = self._halfMapSize;
         
-        if (mapSize <= 0) return;
+        if (halfMapSize <= 0) return;
         
         var GV = gv,
-            halfMapSize = mapSize / 2,
+            haloFadeSize = halfMapSize * 16,
             centerToCornerMapSize = GV.SQRT_OF_2 * halfMapSize,
             HALO_RADIUS_BY_TYPE = GV.HALO_RADIUS_BY_TYPE,
             MOB_COLOR_BY_TYPE = GV.MOB_COLOR_BY_TYPE,
@@ -189,14 +196,14 @@ gv.Map = new JS.Class('Map', myt.View, {
             centerMob = self.getCenterMob() || {x:0, y:0},
             highlightMob = GV.app.highlightMob,
             
-            scale = self.distanceScale,
+            scale = self._distanceScale,
             offsetX = halfMapSize - centerMob.x * scale,
             offsetY = halfMapSize - centerMob.y * scale,
             
             type, mobCx, mobCy, mobR, mobHaloR, color,
             cicFunc = GV.circleIntersectsCircle,
             
-            labelLayer = self.labelLayer,
+            labelLayer = self._labelLayer,
             
             canvasMobs = [],
             canvasMobsLen,
@@ -257,7 +264,7 @@ gv.Map = new JS.Class('Map', myt.View, {
             // Don't draw halos or mobs that do not intersect the map
             if (cicFunc(halfMapSize, halfMapSize, centerToCornerMapSize, mobCx, mobCy, mobHaloR)) {
                 color = MOB_COLOR_BY_TYPE[type];
-                appendTo(haloData, mobCx, mobCy, rotation, 2 * mobHaloR, color, Math.max(0, 0.5 - (mobHaloR / (8 * mapSize))), 1);
+                appendTo(haloData, mobCx, mobCy, rotation, 2 * mobHaloR, color, Math.max(0, 0.5 - (mobHaloR / haloFadeSize)), 1);
                 
                 // Don't draw mobs that are too small to see
                 if (mobR > 0.25) {
