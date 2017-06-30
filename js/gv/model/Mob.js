@@ -31,6 +31,7 @@ gv.Mob = new JS.Class('Mob', myt.Eventable, {
     
     setLabel: function(v) {this.label = v;},
     setType: function(v) {this.type = v;},
+    isType: function(v) {return this.type === v;},
     
     setMass: function(m) {
         this.mass = Math.max(0, m);
@@ -74,6 +75,18 @@ gv.Mob = new JS.Class('Mob', myt.Eventable, {
         return (diffX * diffX) + (diffY * diffY);
     },
     
+    measureRelativeVelocity: function(mob) {
+        return {
+            x:mob.vx - this.vx, 
+            y:mob.vy - this.vy
+        };
+    },
+    
+    measureRelativeSpeed: function(mob) {
+        var v = this.measureRelativeVelocity(mob);
+        return Math.sqrt((v.x * v.x) + (v.y * v.y));
+    },
+    
     /** @private */
     _calculateVolumeAndRadius: function() {
         var self = this,
@@ -82,34 +95,81 @@ gv.Mob = new JS.Class('Mob', myt.Eventable, {
         self.radiusSquared = radius * radius;
     },
     
+    /** @private */
+    _shiftAwayFrom: function(mob) {
+        var self = this,
+            dx = self.x - mob.x,
+            dy = self.y - mob.y,
+            distance = self.measureDistance(mob),
+            targetDistance = self.radius + mob.radius + 0.125, // 0.125 meters extra
+            scale;
+            
+        if (distance !== 0) {
+            scale = (targetDistance / distance) - 1;
+            self.setX(self.x + dx * scale);
+            self.setY(self.y + dy * scale);
+        } else {
+            // Rare case where the two mobs are directly on top of each other
+            // so we really don't know which direction to shift so we
+            // arbitrarily adjust x.
+            self.setX(self.x + targetDistance);
+        }
+    },
+    
     resolveCollision: function(mob) {
         var self = this,
-            spacetime = gv.spacetime;
+            spacetime = gv.spacetime,
+            massA = self.mass,
+            massB = mob.mass,
+            selfIsMoreMassive = massA > massB,
+            combinedMass = massA + massB,
+            massRatioA = massA / combinedMass,
+            massRatioB = massB / combinedMass,
+            combinedVx = self.vx * massRatioA + mob.vx * massRatioB,
+            combinedVy = self.vy * massRatioA + mob.vy * massRatioB,
+            speed;
+        
+        // Check ship collision first
+        if (self.isType('ship') || mob.isType('ship')) {
+            speed = self.measureRelativeSpeed(mob);
+            
+            if (speed <= gv.SAFE_SHIP_COLLISION_THRESHOLD) {
+console.log('SAFE COLLISION');
+                // Lock together by giving each mob the same velocity.
+                self.setVx(combinedVx);
+                self.setVy(combinedVy);
+                mob.setVx(combinedVx);
+                mob.setVy(combinedVy);
+                
+                // Push back the less massive body a tiny bit so they won't
+                // immediately recollide
+                if (selfIsMoreMassive) {
+                    mob._shiftAwayFrom(self);
+                } else {
+                    self._shiftAwayFrom(mob);
+                }
+                
+                return;
+            }
+        }
+console.log('COLLISION!!!', mob.label, self.label);
         
         // Remove both mobs since they collided
         spacetime.removeMob(self);
         spacetime.removeMob(mob);
         
-console.log('COLLISION!!!', mob.label, self.label);
-console.log(mob.measureDistanceSquared(self) - mob.radiusSquared - self.radiusSquared, mob.measureDistance(self) - mob.radius - self.radius)
         // Make a new mob
-        var massA = self.mass,
-            massB = mob.mass,
-            selfIsMoreMassive = massA > massB,
-            newMass = massA + massB,
-            massRatioA = massA / newMass,
-            massRatioB = massB / newMass,
-            newMob = spacetime.addMob(new gv.Mob({
-                mass:newMass,
-                density:self.density * massRatioA + mob.density * massRatioB,
-                x:self.x * massRatioA + mob.x * massRatioB,
-                y:self.y * massRatioA + mob.y * massRatioB,
-                vx:self.vx * massRatioA + mob.vx * massRatioB,
-                vy:self.vy * massRatioA + mob.vy * massRatioB,
-                mapCenter:self.isMapCenter() || mob.isMapCenter(),
-                label:selfIsMoreMassive ? self.label : mob.label,
-                type:selfIsMoreMassive ? self.type : mob.type
-            }));
+        var newMob = spacetime.addMob(new gv.Mob({
+            mass:combinedMass,
+            density:self.density * massRatioA + mob.density * massRatioB,
+            x:self.x * massRatioA + mob.x * massRatioB,
+            y:self.y * massRatioA + mob.y * massRatioB,
+            vx:combinedVx,
+            vy:combinedVy,
+            mapCenter:self.isMapCenter() || mob.isMapCenter(),
+            label:selfIsMoreMassive ? self.label : mob.label,
+            type:selfIsMoreMassive ? self.type : mob.type
+        }));
         
         // Finally destroy both mobs now that we're done using information from them.
         self.destroy();

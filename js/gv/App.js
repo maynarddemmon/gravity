@@ -443,6 +443,10 @@ gv.App = new JS.Class('App', myt.View, {
         GV.giveMobCircularOrbit(ship, earth, 1.30e7, 0);
         mobs.push(ship);
         
+        var ship4 = new GV.Ship({mass:2.0e6, density:100, label:'Spaceship 4'});
+        GV.giveMobCircularOrbit(ship4, earth, 1.3001e7, 0);
+        mobs.push(ship4);
+        
         var ship2 = new GV.Ship({mass:1.0e6, density:100, label:'Spaceship 2'});
         GV.giveMobCircularOrbit(ship2, earth, 1.31e7, 0);
         mobs.push(ship2);

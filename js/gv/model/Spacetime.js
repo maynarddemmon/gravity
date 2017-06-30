@@ -140,7 +140,7 @@ gv.Spacetime = new JS.Class('Spacetime', myt.Eventable, {
     /** @private */
     _loop: function() {
         var self = this,
-            i, j, mobA, mobB, r1, collisionDistance, allMobs, allMobsLen, mobs,
+            i, j, mobA, mobB, newMob, r1, collisionDistance, allMobs, allMobsLen, mobs,
             dt = gv.app.simulatedSecondsPerTimeSlice;
         
         // Resolve collisions. Don't check collisions every time since this 
@@ -158,8 +158,11 @@ gv.Spacetime = new JS.Class('Spacetime', myt.Eventable, {
                     mobB = allMobs[j];
                     collisionDistance = r1 + mobB.radius;
                     if (mobA.measureDistanceSquared(mobB) < collisionDistance * collisionDistance) {
-                        allMobs.push(mobA.resolveCollision(mobB));
-                        allMobs.splice(j, 1);
+                        newMob = mobA.resolveCollision(mobB);
+                        if (newMob) {
+                            allMobs.push(newMob);
+                            allMobs.splice(j, 1);
+                        }
                         break;
                     }
                 }
