@@ -126,7 +126,7 @@ console.log(mob.measureDistanceSquared(self) - mob.radiusSquared - self.radiusSq
         self.dvy += Math.sin(radiansToMob) * dv;
     },
     
-    applyDeltaV: function(dt) {
+    applyDeltas: function(dt) {
         var self = this,
             // Update velocity
             vx = self.vx += self.dvx * dt,
@@ -136,8 +136,8 @@ console.log(mob.measureDistanceSquared(self) - mob.radiusSquared - self.radiusSq
         self.x += vx * dt;
         self.y += vy * dt;
         
-        // Update Rotation
-        self.angle = (self.angle + self.va * dt) % (2*Math.PI);
+        // Update Angle
+        self.angle = (self.angle + self.va * dt) % gv.TWO_PI;
         
         // Reset
         self.dvx = self.dvy = 0;

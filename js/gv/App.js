@@ -35,12 +35,12 @@ gv.App = new JS.Class('App', myt.View, {
         
         // Build UI
         GV.map = self.map = new GV.Map(self, {
-            scaleValue:9.21, // 14.2 earth/moon
+            scaleValue:7, // 14.2 earth/moon
             centerMob:spacetime.getMobByLabel('Spaceship')
         });
         
         // Controls
-        new GV.Slider(self, {x:5, y:5, width:200, value:5, minValue:0, maxValue:19}, [{
+        new GV.Slider(self, {x:5, y:5, width:300, value:8, minValue:0, maxValue:25}, [{
             setValue: function(v) {
                 this.callSuper(v);
                 
@@ -48,24 +48,30 @@ gv.App = new JS.Class('App', myt.View, {
                 switch (this.value) {
                     case 0:  timeScale = 0; txt = 'paused'; break;
                     case 1:  timeScale = 1; txt = 'realtime'; break;
-                    case 2:  timeScale = 5; txt = '5 sec/sec'; break;
-                    case 3:  timeScale = 30; txt = '30 sec/sec'; break;
-                    case 4:  timeScale = 60; txt = '1 min/sec'; break;
-                    case 5:  timeScale = 60 * 5; txt = '5 min/sec'; break;
-                    case 6:  timeScale = 60 * 15; txt = '15 min/sec'; break;
-                    case 7:  timeScale = 60 * 30; txt = '30 min/sec'; break;
-                    case 8:  timeScale = 60 * 45; txt = '45 min/sec'; break;
-                    case 9:  timeScale = 60 * 60; txt = '1 hr/sec'; break;
-                    case 10:  timeScale = 60 * 60 * 1.5; txt = '1.5 hr/sec'; break;
-                    case 11:  timeScale = 60 * 60 * 2; txt = '2 hr/sec'; break;
-                    case 12: timeScale = 60 * 60 * 3; txt = '3 hr/sec'; break;
-                    case 13: timeScale = 60 * 60 * 4; txt = '4 hr/sec'; break;
-                    case 14: timeScale = 60 * 60 * 5; txt = '5 hr/sec'; break;
-                    case 15: timeScale = 60 * 60 * 6; txt = '6 hr/sec'; break;
-                    case 16: timeScale = 60 * 60 * 8; txt = '8 hr/sec'; break;
-                    case 17: timeScale = 60 * 60 * 10; txt = '10 hr/sec'; break;
-                    case 18: timeScale = 60 * 60 * 12; txt = '12 hr/sec'; break;
-                    case 19: timeScale = 60 * 60 * 24; txt = '1 day/sec'; break;
+                    case 2:  timeScale = 2; txt = '2 sec/sec'; break;
+                    case 3:  timeScale = 3; txt = '3 sec/sec'; break;
+                    case 4:  timeScale = 5; txt = '5 sec/sec'; break;
+                    case 5:  timeScale = 10; txt = '10 sec/sec'; break;
+                    case 6:  timeScale = 15; txt = '15 sec/sec'; break;
+                    case 7:  timeScale = 20; txt = '20 sec/sec'; break;
+                    case 8:  timeScale = 30; txt = '30 sec/sec'; break;
+                    case 9:  timeScale = 45; txt = '45 sec/sec'; break;
+                    case 10:  timeScale = 60; txt = '1 min/sec'; break;
+                    case 11:  timeScale = 60 * 2; txt = '2 min/sec'; break;
+                    case 12:  timeScale = 60 * 3; txt = '3 min/sec'; break;
+                    case 13:  timeScale = 60 * 5; txt = '5 min/sec'; break;
+                    case 14:  timeScale = 60 * 10; txt = '10 min/sec'; break;
+                    case 15:  timeScale = 60 * 15; txt = '15 min/sec'; break;
+                    case 16:  timeScale = 60 * 20; txt = '20 min/sec'; break;
+                    case 17:  timeScale = 60 * 30; txt = '30 min/sec'; break;
+                    case 18:  timeScale = 60 * 45; txt = '45 min/sec'; break;
+                    case 19:  timeScale = 60 * 60; txt = '1 hr/sec'; break;
+                    case 20: timeScale = 60 * 60 * 2; txt = '2 hr/sec'; break;
+                    case 21: timeScale = 60 * 60 * 3; txt = '3 hr/sec'; break;
+                    case 22: timeScale = 60 * 60 * 5; txt = '5 hr/sec'; break;
+                    case 23: timeScale = 60 * 60 * 10; txt = '10 hr/sec'; break;
+                    case 24: timeScale = 60 * 60 * 12; txt = '12 hr/sec'; break;
+                    case 25: timeScale = 60 * 60 * 24; txt = '1 day/sec'; break;
                 }
                 this.setText(txt);
                 if (timeScale > 0) {
@@ -440,6 +446,10 @@ gv.App = new JS.Class('App', myt.View, {
         var ship2 = new GV.Ship({mass:1.0e6, density:100, label:'Spaceship 2'});
         GV.giveMobCircularOrbit(ship2, earth, 1.31e7, 0);
         mobs.push(ship2);
+        
+        var ship3 = new GV.Ship({mass:1.0e6, density:100, label:'Spaceship 3'});
+        GV.giveMobCircularOrbit(ship3, luna, 5.0e6, 0);
+        mobs.push(ship3);
         
         spacetime.bulkAddMob(mobs);
     }

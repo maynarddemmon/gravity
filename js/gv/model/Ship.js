@@ -40,8 +40,13 @@ gv.Ship = new JS.Class('Ship', gv.Mob, {
     
     /** @private */
     _applyRotationalThrust: function(clockwise) {
-        var va = this.va + (clockwise ? 0.1 : -0.1);
-        if (Math.abs(va) < 0.05) va = 0;
+        // Scale by simulatedSecondsPerTimeSlice
+        var timeScaling = 1 / gv.app.simulatedSecondsPerTimeSlice,
+            va = this.va + (clockwise ? 0.01 : -0.01) * timeScaling;
+        
+        // Snap to zero when close so it's easy for a user to stop rotation
+        if (Math.abs(va) < 0.005 * timeScaling) va = 0;
+        
         this.setVa(va);
     },
     
@@ -49,10 +54,10 @@ gv.Ship = new JS.Class('Ship', gv.Mob, {
         var thrust = this.thrust;
         if (thrust >= 0) {
             // Increase Main Thrust
-            thrust = Math.max(0, thrust + 1);
+            thrust = Math.max(0, thrust + 0.25);
         } else {
             // Decrease Breaking
-            thrust = Math.min(0, thrust + 0.25);
+            thrust = Math.min(0, thrust + 0.0625);
         }
         this.setThrust(thrust);
     },
@@ -61,10 +66,10 @@ gv.Ship = new JS.Class('Ship', gv.Mob, {
         var thrust = this.thrust;
         if (thrust > 0) {
             // Decrease Main Thrust
-            thrust = Math.max(0, thrust - 1);
+            thrust = Math.max(0, thrust - 0.25);
         } else {
             // Increase Breaking
-            thrust = Math.min(0, thrust - 0.25);
+            thrust = Math.min(0, thrust - 0.0625);
         }
         this.setThrust(thrust);
     },

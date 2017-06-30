@@ -182,6 +182,6 @@ gv.Spacetime = new JS.Class('Spacetime', myt.Eventable, {
         
         // Update mob positions
         j = allMobsLen;
-        while (j) allMobs[--j].applyDeltaV(dt);
+        while (j) allMobs[--j].applyDeltas(dt);
     }
 });

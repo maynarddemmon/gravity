@@ -156,9 +156,7 @@ gv.Map = new JS.Class('Map', myt.View, {
         if (halfMapSize <= 0) return;
         
         var GV = gv,
-            haloFadeSize = halfMapSize * 16,
-            shipHaloFadeSize = halfMapSize * 8,
-            centerToCornerMapSize = GV.SQRT_OF_2 * halfMapSize,
+            centerToCornerMapSize = Math.SQRT2 * halfMapSize,
             HALO_RADIUS_BY_TYPE = GV.HALO_RADIUS_BY_TYPE,
             MOB_COLOR_BY_TYPE = GV.MOB_COLOR_BY_TYPE,
             
@@ -239,12 +237,12 @@ gv.Map = new JS.Class('Map', myt.View, {
                 if (type === 'ship') {
                     appendTo(
                         haloData, mobCx, mobCy, rotation, 2 * mobHaloR, color, 
-                        Math.max(0, 1.0 - (mobHaloR / haloFadeSize)), 3
+                        Math.max(0, 1.0 - (mobHaloR / 1000)), 3
                     );
                 } else {
                     appendTo(
                         haloData, mobCx, mobCy, rotation, 2 * mobHaloR, color, 
-                        Math.max(0, 0.5 - (mobHaloR / shipHaloFadeSize)), 1
+                        Math.max(0, 0.5 - (mobHaloR / 1000)), 1
                     );
                 }
                 

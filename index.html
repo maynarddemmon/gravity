@@ -80,7 +80,7 @@
 		} else {
 			// Render Type 3: Triangle Line with inset filled triangle (Ship Halo)
 			r = polygon(pt, vRotation, 3.0);
-			alpha = plotLine(0.5, fwidth(r), r);
+			alpha = plotLine(0.5, 1.5 * fwidth(r), r);
 			
 			// Add smaller triangle at the tip
 			pt = scale(vec2(4.0)) * pt;

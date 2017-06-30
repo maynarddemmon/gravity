@@ -28,7 +28,8 @@ gv = (function() {
         // How many millis occur during one time slice.
         MILLIS_PER_CALC:millisPerCalc,
         
-        // React only mass theshold
+        // React only mass theshold. Below this value mobs only react to
+        // gravity, they don't generate it.
         REACT_ONLY_THRESHOLD:1.0e21,
         
         // Makes all mobs larger
@@ -37,22 +38,13 @@ gv = (function() {
         // Used in volume of a sphere calculations.
         THREE_OVER_FOUR_PI:3 / (4 * Math.PI),
         
-        SQRT_OF_2:Math.sqrt(2),
+        TWO_PI:Math.PI * 2,
         
         // The gravitational constant
         G:6.674e-11,
         
         // 1 astronomical unit in meters
         AU:149597870700,
-        
-        // A reference to the gv.App object
-        app:null,
-        
-        // A reference to the gv.Spacetime object
-        spacetime:null,
-        
-        // A reference to the main gv.Map object
-        map:null,
         
         HALO_RADIUS_BY_TYPE: {
             star:200,
@@ -69,6 +61,15 @@ gv = (function() {
             asteroid:[0.75, 0.75, 0.75, 0.0],
             ship:    [ 0.0,  1.0,  0.0, 0.0]
         },
+        
+        // A reference to the gv.App object
+        app:null,
+        
+        // A reference to the gv.Spacetime object
+        spacetime:null,
+        
+        // A reference to the main gv.Map object
+        map:null,
         
         circleIntersectsCircle: function(ax, ay, ar, bx, by, br) {
             return myt.Geometry.measureDistance(ax, ay, bx, by, true) < (ar + br) * (ar + br);
