@@ -59,7 +59,7 @@ gv = (function() {
             planet:1000,
             moon:1000,
             asteroid:5000,
-            ship:5000
+            ship:600
         },
         
         MOB_COLOR_BY_TYPE: {
@@ -178,7 +178,7 @@ gv.SliderThumb = new JS.Class('Slider', myt.SimpleSliderThumb, {
 gv.Slider = new JS.Class('Slider', myt.Slider, {
     // Life Cycle //////////////////////////////////////////////////////////////
     initNode: function(parent, attrs) {
-        if (attrs.bgColor == null) attrs.bgColor = '#002200';
+        if (attrs.bgColor == null) attrs.bgColor = '#006600';
         if (attrs.thumbClass == null) attrs.thumbClass = gv.SliderThumb;
         
         var text = attrs.text || '';

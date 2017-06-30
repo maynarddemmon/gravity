@@ -19,7 +19,11 @@ gv.Ship = new JS.Class('Ship', gv.Mob, {
     
     // Accessors ///////////////////////////////////////////////////////////////
     setFuel: function(v) {this.fuel = v;},
-    setThrust: function(v) {this.thrust = v;},
+    setThrust: function(v) {
+        this.thrust = v;
+        
+        gv.app.updateShipThrustLabel();
+    },
     
     
     // Methods /////////////////////////////////////////////////////////////////
@@ -42,11 +46,27 @@ gv.Ship = new JS.Class('Ship', gv.Mob, {
     },
     
     increaseThrust: function() {
-        this.setThrust(this.thrust + 1);
+        var thrust = this.thrust;
+        if (thrust >= 0) {
+            // Increase Main Thrust
+            thrust = Math.max(0, thrust + 1);
+        } else {
+            // Decrease Breaking
+            thrust = Math.min(0, thrust + 0.25);
+        }
+        this.setThrust(thrust);
     },
     
     decreaseThrust: function() {
-        this.setThrust(Math.max(0, this.thrust - 1));
+        var thrust = this.thrust;
+        if (thrust > 0) {
+            // Decrease Main Thrust
+            thrust = Math.max(0, thrust - 1);
+        } else {
+            // Increase Breaking
+            thrust = Math.min(0, thrust - 0.25);
+        }
+        this.setThrust(thrust);
     },
     
     /** @overrides */

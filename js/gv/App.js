@@ -77,11 +77,20 @@ gv.App = new JS.Class('App', myt.View, {
             }
         }]);
         
+        self._scaleLabel = new M.Text(self, {x:5, y:28, fontSize:'10px', textColor:'#00ff00'});
+        self._centerMobLabel = new M.Text(self, {x:5, y:40, fontSize:'10px', textColor:'#00ff00'});
+        self._shipThrustLabel = new M.Text(self, {x:5, y:52, fontSize:'10px', textColor:'#00ff00'});
+        
         self._updateSize();
         
         global.hideSpinner();
         
         self.focus();
+        
+        self._uiReady = true;
+        self.updateScaleLabel();
+        self.updateCenterMobLabel();
+        self.updateShipThrustLabel();
     },
     
     
@@ -117,6 +126,43 @@ gv.App = new JS.Class('App', myt.View, {
     
     
     // Methods /////////////////////////////////////////////////////////////////
+    updateScaleLabel: function() {
+        if (!this._uiReady) return;
+        
+        var v = this.map.inverseDistanceScale,
+            unit, value;
+        
+        // Clean up value for display
+        if (v >= 100000000) {
+            v /= gv.AU;
+            unit = 'astronomical units';
+            value = v.toFixed(4);
+        } else if (v >= 1000000) {
+            v /= 1000000;
+            unit = 'megameters';
+            value = v.toFixed(2);
+        } else if (v >= 1000) {
+            v /= 1000;
+            unit = 'kilometers';
+            value = v.toFixed(2);
+        } else {
+            unit = 'meters';
+            value = v.toFixed(2);
+        }
+        
+        this._scaleLabel.setText('Scale:' + value + ' ' + unit + '/pixel');
+    },
+    
+    updateCenterMobLabel: function() {
+        var mob = this.map.getCenterMob();
+        this._centerMobLabel.setText(mob ? 'Center:' + mob.label : '');
+    },
+    
+    updateShipThrustLabel: function() {
+        var ship = this.getPlayerShip();
+        this._shipThrustLabel.setText('Ship Thrust:' + (ship ? ship.thrust : '-'));
+    },
+    
     doActivationKeyDown: function(key, isRepeat) {
         var ship = this.getPlayerShip();
         if (ship) {

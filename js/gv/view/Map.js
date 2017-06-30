@@ -4,14 +4,13 @@
         None
     
     Attributes:
-        None
+        inverseDistanceScale
     
     Private Attributes:
         _wheelX
         _wheelY
         _wheelSpeed
         _distanceScale
-        _inverseDistanceScale
         _halfMapSize
 */
 gv.Map = new JS.Class('Map', myt.View, {
@@ -25,7 +24,7 @@ gv.Map = new JS.Class('Map', myt.View, {
         self._wheelSpeed = 100;
         self._wheelX = 0;
         self._wheelY = attrs.scaleValue * self._wheelSpeed;
-        self._distanceScale = self._inverseDistanceScale = 1;
+        self._distanceScale = self.inverseDistanceScale = 1;
         self._halfMapSize = 0;
         
         attrs.bgColor = '#000000';
@@ -35,8 +34,6 @@ gv.Map = new JS.Class('Map', myt.View, {
         
         self._mobsLayer = new gv.WebGL(self);
         self._labelLayer = new M.Canvas(self);
-        self._scaleLabel = new M.Text(self, {align:'center', y:7, fontSize:'10px', textColor:'#00ff00'});
-        self._centerMobLabel = new M.Text(self, {align:'center', y:19, fontSize:'10px', textColor:'#00ff00'});
         
         self.attachToDom(self, '_handleWheel', 'wheel');
         self.attachToDom(self, '_handleMove', 'mousemove');
@@ -44,7 +41,6 @@ gv.Map = new JS.Class('Map', myt.View, {
         self.attachTo(M.global.idle, '_update', 'idle');
         
         self._updateDistanceScale();
-        self._updateCenterMobLabel();
     },
     
     
@@ -54,7 +50,7 @@ gv.Map = new JS.Class('Map', myt.View, {
             this._centerMob = v;
             
             if (this.inited) {
-                this._updateCenterMobLabel();
+                gv.app.updateCenterMobLabel();
                 this.forceUpdate();
             }
         }
@@ -89,12 +85,6 @@ gv.Map = new JS.Class('Map', myt.View, {
     
     // Methods /////////////////////////////////////////////////////////////////
     /** @private */
-    _updateCenterMobLabel: function() {
-        var mob = this.getCenterMob();
-        this._centerMobLabel.setText(mob ? mob.label : '');
-    },
-    
-    /** @private */
     _handleClick: function(event) {
         var highlightMob = gv.app.highlightMob;
         if (highlightMob) this.setCenterMob(highlightMob);
@@ -114,7 +104,7 @@ gv.Map = new JS.Class('Map', myt.View, {
         @private */
     _convertPixelsToMeters: function(pos) {
         var centerMob = this.getCenterMob() || {x:0, y:0},
-            inverseScale = this._inverseDistanceScale,
+            inverseScale = this.inverseDistanceScale,
             halfMapSize = this._halfMapSize;
         return {
             x:(pos.x - halfMapSize) * inverseScale + centerMob.x, 
@@ -132,36 +122,17 @@ gv.Map = new JS.Class('Map', myt.View, {
     
     /** @private */
     _updateDistanceScale: function() {
-        var newScale = Math.exp(this._wheelY / this._wheelSpeed), 
-            unit, value;
+        var newScale = Math.exp(this._wheelY / this._wheelSpeed);
         
         // Set distance scale
         var scale = 1 / newScale;
         if (scale !== this._distanceScale) {
             this._distanceScale = scale;
-            this._inverseDistanceScale = 1 / scale;
+            this.inverseDistanceScale = newScale;
             if (this.inited) this.forceUpdate();
         }
         
-        // Clean up value for display
-        if (newScale >= 100000000) {
-            newScale /= gv.AU;
-            unit = 'astronomical units';
-            value = newScale.toFixed(4);
-        } else if (newScale >= 1000000) {
-            newScale /= 1000000;
-            unit = 'megameters';
-            value = newScale.toFixed(2);
-        } else if (newScale >= 1000) {
-            newScale /= 1000;
-            unit = 'kilometers';
-            value = newScale.toFixed(2);
-        } else {
-            unit = 'meters';
-            value = newScale.toFixed(2);
-        }
-        
-        this._scaleLabel.setText(value + ' ' + unit + '/pixel');
+        gv.app.updateScaleLabel();
     },
     
     /** Redraw when spacetime is running.
@@ -186,6 +157,7 @@ gv.Map = new JS.Class('Map', myt.View, {
         
         var GV = gv,
             haloFadeSize = halfMapSize * 16,
+            shipHaloFadeSize = halfMapSize * 8,
             centerToCornerMapSize = GV.SQRT_OF_2 * halfMapSize,
             HALO_RADIUS_BY_TYPE = GV.HALO_RADIUS_BY_TYPE,
             MOB_COLOR_BY_TYPE = GV.MOB_COLOR_BY_TYPE,
@@ -264,7 +236,17 @@ gv.Map = new JS.Class('Map', myt.View, {
             // Don't draw halos or mobs that do not intersect the map
             if (cicFunc(halfMapSize, halfMapSize, centerToCornerMapSize, mobCx, mobCy, mobHaloR)) {
                 color = MOB_COLOR_BY_TYPE[type];
-                appendTo(haloData, mobCx, mobCy, rotation, 2 * mobHaloR, color, Math.max(0, 0.5 - (mobHaloR / haloFadeSize)), 1);
+                if (type === 'ship') {
+                    appendTo(
+                        haloData, mobCx, mobCy, rotation, 2 * mobHaloR, color, 
+                        Math.max(0, 1.0 - (mobHaloR / haloFadeSize)), 3
+                    );
+                } else {
+                    appendTo(
+                        haloData, mobCx, mobCy, rotation, 2 * mobHaloR, color, 
+                        Math.max(0, 0.5 - (mobHaloR / shipHaloFadeSize)), 1
+                    );
+                }
                 
                 // Don't draw mobs that are too small to see
                 if (mobR > 0.25) {
@@ -326,6 +308,6 @@ gv.Map = new JS.Class('Map', myt.View, {
     },
     
     convertColorToHex: function(v) {
-        return myt.Color.rgbToHex(v[0] * 255, v[1] * 255, v[2] * 255, true);
+        return myt.Color.rgbToHex(v[0] * v[0] * 255, v[1] * v[1] * 255, v[2] * v[2] * 255, true);
     }
 });

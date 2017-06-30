@@ -15,6 +15,7 @@
 	#endif
 	
 	#define PI 3.14159265359
+	#define FIVE_SIXTHS_PI 2.61799382
 	#define TWO_PI 6.28318530718
 	
 	precision mediump float;
@@ -27,38 +28,68 @@
 	varying float vType;
 	varying float vRotation;
 	
+	// Plot a line using a value between 0.0 - 1.0
+	float plotLine(float pct, float delta, float v) {
+		return smoothstep(pct - delta, pct, v) - smoothstep(pct, pct + delta, v);
+	}
+	
+	float fill(float lower, float upper, float v) {
+		return 1.0 - smoothstep(lower, upper, v);
+	}
+	
+	float polygon(vec2 pt, float rotation, float sides) {
+		float a = atan(pt.x, pt.y) - FIVE_SIXTHS_PI + rotation;
+		float k = TWO_PI / sides;
+		return cos(floor(0.5 + a / k) * k - a) * length(pt);
+	}
+	
+	mat2 rotate2d(float a) {
+		return mat2(cos(a), -sin(a), sin(a), cos(a));
+	}
+	
+	mat2 scale(vec2 scale) {
+		return mat2(scale.x, 0.0, 0.0, scale.y);
+	}
+	
 	void main(void) {
-		float r = 0.0, alpha = 1.0, lower = 0.0, upper = 1.0;
+		float r = 0.0, alpha = 1.0;
 		
 		// Shift point into a range of +/- 1.0
-		vec2 cxy = 2.0 * gl_PointCoord - 1.0;
+		vec2 pt = 2.0 * gl_PointCoord - 1.0;
 	
 	#ifdef GL_OES_standard_derivatives
 		if (vType < 0.1) {
 			// Render Type 0: Smooth Circle
-			
-			// Calculate how far the point is from the center
-			r = dot(cxy, cxy);
-			lower = 1.0 - fwidth(r);
-			upper = 1.0;
+			r = dot(pt, pt);
+			alpha = fill(1.0 - fwidth(r), 1.0, r);
 		} else if (vType < 1.1) {
 			// Render Type 1: Fuzzy Circle
+			r = dot(pt, pt);
+			alpha = fill(0.0, 1.0, r);
+		} else if (vType < 2.1) {
+			// Render Type 2: Triangle filled (Ship)
+			r = polygon(pt, vRotation, 3.0);
+			alpha = fill(0.5 - fwidth(r), 0.5, r);
 			
-			// Calculate how far the point is from the center
-			r = dot(cxy, cxy);
+			// Cut smaller triangle out of the tip
+			pt = scale(vec2(4.0)) * pt;
+			pt += vec2(cos(vRotation), sin(vRotation)) * -2.5;
+			
+			r = polygon(pt, vRotation, 3.0);
+			alpha -= 1.0 * fill(0.5 - fwidth(r), 0.5, r);
 		} else {
-			// Render Type 2: Triangle
+			// Render Type 3: Triangle Line with inset filled triangle (Ship Halo)
+			r = polygon(pt, vRotation, 3.0);
+			alpha = plotLine(0.5, fwidth(r), r);
 			
-			// Shaping function that modulate the distance
-			float a = atan(cxy.x, cxy.y) + PI + vRotation;
-			float k = TWO_PI / 3.0; // 3 sides
-			r = cos(floor(0.5 + a / k) * k - a) * length(cxy);
-			lower = 0.5 - fwidth(r);
-			upper = 0.5;
+			// Add smaller triangle at the tip
+			pt = scale(vec2(4.0)) * pt;
+			pt += vec2(cos(vRotation), sin(vRotation)) * -2.5;
+			
+			r = polygon(pt, vRotation, 3.0);
+			alpha += 0.75 * fill(0.5 - fwidth(r), 0.5, r);
 		}
 	#endif
-		alpha = 1.0 - smoothstep(lower, upper, r);
-		
 		gl_FragColor = vColor * alpha;
 	}
 </script>
