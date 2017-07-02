@@ -269,7 +269,7 @@ gv.Map = new JS.Class('Map', myt.View, {
             mobInfo = canvasMobs[--canvasMobsLen];
             
             labelLayer.beginPath();
-            labelLayer.circle(mobInfo[0], mobInfo[1], mobInfo[3]);
+            self._drawCircle(labelLayer, mobInfo[0], mobInfo[1], mobInfo[3]);
             labelLayer.setFillStyle(self.convertColorToHex(mobInfo[4]));
             labelLayer.fill();
         }
@@ -282,7 +282,7 @@ gv.Map = new JS.Class('Map', myt.View, {
             mobCy = offsetY + highlightMob.y * scale;
             
             labelLayer.beginPath();
-            labelLayer.circle(mobCx, mobCy, highlightRadius);
+            self._drawCircle(labelLayer, mobCx, mobCy, highlightRadius);
             labelLayer.setLineWidth(1.0);
             labelLayer.setStrokeStyle('#00ff00');
             labelLayer.stroke();
@@ -303,6 +303,40 @@ gv.Map = new JS.Class('Map', myt.View, {
         
         // Redraw
         self._mobsLayer.redraw(haloData);
+    },
+    
+    /** @private */
+    _drawCircle: function(layer, x, y, r) {
+        if (r > 100000) {
+            var GV = gv,
+                halfMapSize = this._halfMapSize,
+                p3, a1, a2;
+            if (GV.circleContainsCircle(x, y, r, halfMapSize, halfMapSize, 2 * halfMapSize)) {
+                // Draw a rect when the circle contains the viewport
+                layer.rect(0, 0, 2*halfMapSize, 2*halfMapSize);
+            } else {
+                // Draw large circles as a poly to prevent jitter
+                p3 = GV.getClosestPointOnACircleToAPoint(x, y, r, halfMapSize, halfMapSize);
+                
+                if (halfMapSize === x) {
+                    a1 = Math.PI / 2 * (y > halfMapSize ? 1 : -1);
+                } else if (x > halfMapSize) {
+                    a1 = Math.atan((halfMapSize - y) / (halfMapSize - x)) + Math.PI;
+                } else {
+                    a1 = Math.atan((halfMapSize - y) / (halfMapSize - x));
+                }
+                a1 -= 0.05;
+                a2 = a1 + 0.1;
+                
+                console.log('arc');
+                layer.moveTo(x, y);
+                layer.lineTo(x + r * Math.cos(a1), y + r * Math.sin(a1));
+                layer.lineTo(p3.x, p3.y);
+                layer.lineTo(x + r * Math.cos(a2), y + r * Math.sin(a2));
+            }
+        } else {
+            layer.circle(x, y, r);
+        }
     },
     
     convertColorToHex: function(v) {

@@ -103,6 +103,20 @@ gv = (function() {
             satelliteMob.setY(centerMob.y + Math.sin(angle) * orbitRadius);
             satelliteMob.setVx(centerMob.vx + Math.cos(tangentAngle) * speed * reverse);
             satelliteMob.setVy(centerMob.vy + Math.sin(tangentAngle) * speed * reverse);
+        },
+        
+        getClosestPointOnACircleToAPoint: function(cx, cy, r, px, py) {
+            var xDiff = px - cx,
+                yDiff = py - cy,
+                distance = Math.sqrt(xDiff * xDiff + yDiff * yDiff);
+            if (distance === 0) {
+                return {x:cx, y:cy};
+            } else {
+                return {
+                    x:cx + r * xDiff / distance,
+                    y:cy + r * yDiff / distance
+                };
+            }
         }
     };
 })();

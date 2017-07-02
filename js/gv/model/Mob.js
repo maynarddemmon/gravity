@@ -133,6 +133,7 @@ gv.Mob = new JS.Class('Mob', myt.Eventable, {
         if (self.isType('ship') || mob.isType('ship')) {
             speed = self.measureRelativeSpeed(mob);
             
+console.log('speed', speed, gv.SAFE_SHIP_COLLISION_THRESHOLD);
             if (speed <= gv.SAFE_SHIP_COLLISION_THRESHOLD) {
 console.log('SAFE COLLISION');
                 // Lock together by giving each mob the same velocity.
