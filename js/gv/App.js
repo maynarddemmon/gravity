@@ -24,7 +24,7 @@ gv.App = new JS.Class('App', myt.View, {
         attrs.minWidth = attrs.minHeight = 600;
         attrs.focusable = true;
         attrs.focusEmbellishment = false;
-        attrs.activationKeys = [37,38,39,40];
+        attrs.activationKeys = [32,37,38,39,40];
         
         self.callSuper(parent, attrs);
         GV.app = self;
@@ -40,52 +40,60 @@ gv.App = new JS.Class('App', myt.View, {
         });
         
         // Controls
-        new GV.Slider(self, {x:5, y:5, width:300, value:8, minValue:0, maxValue:25}, [{
+        var rightPanel = this._rightPanel = new M.View(self);
+        
+        self.playBtn = new GV.CircleButton(rightPanel, {x:5, y:5, text:GV.FA_PLAY, fontSize:'11px'}, [{
+            doActivated: function() {
+                spacetime.start();
+            }
+        }]);
+        
+        self.pauseBtn = new GV.CircleButton(rightPanel, {x:28, y:5, text:GV.FA_PAUSE, fontSize:'11px'}, [{
+            doActivated: function() {
+                spacetime.stop();
+            }
+        }]);
+        
+        new GV.Slider(rightPanel, {x:51, y:5, width:249, value:8, minValue:0, maxValue:24}, [{
             setValue: function(v) {
                 this.callSuper(v);
                 
                 var txt, timeScale;
                 switch (this.value) {
-                    case 0:  timeScale = 0; txt = 'paused'; break;
-                    case 1:  timeScale = 1; txt = 'realtime'; break;
-                    case 2:  timeScale = 2; txt = '2 sec/sec'; break;
-                    case 3:  timeScale = 3; txt = '3 sec/sec'; break;
-                    case 4:  timeScale = 5; txt = '5 sec/sec'; break;
-                    case 5:  timeScale = 10; txt = '10 sec/sec'; break;
-                    case 6:  timeScale = 15; txt = '15 sec/sec'; break;
-                    case 7:  timeScale = 20; txt = '20 sec/sec'; break;
-                    case 8:  timeScale = 30; txt = '30 sec/sec'; break;
-                    case 9:  timeScale = 45; txt = '45 sec/sec'; break;
-                    case 10:  timeScale = 60; txt = '1 min/sec'; break;
-                    case 11:  timeScale = 60 * 2; txt = '2 min/sec'; break;
-                    case 12:  timeScale = 60 * 3; txt = '3 min/sec'; break;
-                    case 13:  timeScale = 60 * 5; txt = '5 min/sec'; break;
-                    case 14:  timeScale = 60 * 10; txt = '10 min/sec'; break;
-                    case 15:  timeScale = 60 * 15; txt = '15 min/sec'; break;
-                    case 16:  timeScale = 60 * 20; txt = '20 min/sec'; break;
-                    case 17:  timeScale = 60 * 30; txt = '30 min/sec'; break;
-                    case 18:  timeScale = 60 * 45; txt = '45 min/sec'; break;
-                    case 19:  timeScale = 60 * 60; txt = '1 hr/sec'; break;
-                    case 20: timeScale = 60 * 60 * 2; txt = '2 hr/sec'; break;
-                    case 21: timeScale = 60 * 60 * 3; txt = '3 hr/sec'; break;
-                    case 22: timeScale = 60 * 60 * 5; txt = '5 hr/sec'; break;
-                    case 23: timeScale = 60 * 60 * 10; txt = '10 hr/sec'; break;
-                    case 24: timeScale = 60 * 60 * 12; txt = '12 hr/sec'; break;
-                    case 25: timeScale = 60 * 60 * 24; txt = '1 day/sec'; break;
+                    case 0:  timeScale = 1; txt = 'realtime'; break;
+                    case 1:  timeScale = 2; txt = '2 sec/sec'; break;
+                    case 2:  timeScale = 3; txt = '3 sec/sec'; break;
+                    case 3:  timeScale = 5; txt = '5 sec/sec'; break;
+                    case 4:  timeScale = 10; txt = '10 sec/sec'; break;
+                    case 5:  timeScale = 15; txt = '15 sec/sec'; break;
+                    case 6:  timeScale = 20; txt = '20 sec/sec'; break;
+                    case 7:  timeScale = 30; txt = '30 sec/sec'; break;
+                    case 8:  timeScale = 45; txt = '45 sec/sec'; break;
+                    case 9:  timeScale = 60; txt = '1 min/sec'; break;
+                    case 10: timeScale = 60 * 2; txt = '2 min/sec'; break;
+                    case 11: timeScale = 60 * 3; txt = '3 min/sec'; break;
+                    case 12: timeScale = 60 * 5; txt = '5 min/sec'; break;
+                    case 13: timeScale = 60 * 10; txt = '10 min/sec'; break;
+                    case 14: timeScale = 60 * 15; txt = '15 min/sec'; break;
+                    case 15: timeScale = 60 * 20; txt = '20 min/sec'; break;
+                    case 16: timeScale = 60 * 30; txt = '30 min/sec'; break;
+                    case 17: timeScale = 60 * 45; txt = '45 min/sec'; break;
+                    case 18: timeScale = 60 * 60; txt = '1 hr/sec'; break;
+                    case 19: timeScale = 60 * 60 * 2; txt = '2 hr/sec'; break;
+                    case 20: timeScale = 60 * 60 * 3; txt = '3 hr/sec'; break;
+                    case 21: timeScale = 60 * 60 * 5; txt = '5 hr/sec'; break;
+                    case 22: timeScale = 60 * 60 * 10; txt = '10 hr/sec'; break;
+                    case 23: timeScale = 60 * 60 * 12; txt = '12 hr/sec'; break;
+                    case 24: timeScale = 60 * 60 * 24; txt = '1 day/sec'; break;
                 }
                 this.setText(txt);
-                if (timeScale > 0) {
-                    self._updateTimeScaling(timeScale);
-                    spacetime.start();
-                } else {
-                    spacetime.stop();
-                }
+                self._updateTimeScaling(timeScale);
             }
         }]);
         
-        self._scaleLabel = new M.Text(self, {x:5, y:28, fontSize:'10px', textColor:'#00ff00'});
-        self._centerMobLabel = new M.Text(self, {x:5, y:40, fontSize:'10px', textColor:'#00ff00'});
-        self._shipThrustLabel = new M.Text(self, {x:5, y:52, fontSize:'10px', textColor:'#00ff00'});
+        self._scaleLabel = new M.Text(rightPanel, {x:5, y:28, fontSize:'10px', textColor:'#00ff00'});
+        self._centerMobLabel = new M.Text(rightPanel, {x:5, y:40, fontSize:'10px', textColor:'#00ff00'});
+        self._shipThrustLabel = new M.Text(rightPanel, {x:5, y:52, fontSize:'10px', textColor:'#00ff00'});
         
         self._updateSize();
         
@@ -97,6 +105,8 @@ gv.App = new JS.Class('App', myt.View, {
         self.updateScaleLabel();
         self.updateCenterMobLabel();
         self.updateShipThrustLabel();
+        
+        spacetime.start();
     },
     
     
@@ -170,9 +180,17 @@ gv.App = new JS.Class('App', myt.View, {
     },
     
     doActivationKeyDown: function(key, isRepeat) {
-        var ship = this.getPlayerShip();
+        var spacetime = gv.spacetime,
+            ship = this.getPlayerShip();
         if (ship) {
             switch (key) {
+                case 32: // Spacebar
+                    if (spacetime.isRunning()) {
+                        spacetime.stop();
+                    } else {
+                        spacetime.start();
+                    }
+                    break;
                 case 37: // Left
                     ship.rotateLeft();
                     break;
@@ -208,6 +226,7 @@ gv.App = new JS.Class('App', myt.View, {
         var self = this,
             size = Math.min(self.width, self.height);
         self.map.setWidth(size);
+        self._rightPanel.setX(size);
     },
     
     /** @private */

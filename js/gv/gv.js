@@ -107,6 +107,13 @@ gv = (function() {
     };
 })();
 
+// Add Font Awesome Cache to the gv object.
+(function(gv) {
+    var func = myt.FontAwesome.makeTag.bind(myt.FontAwesome);
+    gv.FA_PLAY = func(['play']);
+    gv.FA_PAUSE= func(['pause']);
+})(gv);
+
 gv.Button = new JS.Class('Button', myt.SimpleButton, {
     // Life Cycle //////////////////////////////////////////////////////////////
     initNode: function(parent, attrs) {
@@ -123,8 +130,10 @@ gv.Button = new JS.Class('Button', myt.SimpleButton, {
         if (attrs.outset == null) attrs.outset = 3;
         
         var shrinkToFit = attrs.shrinkToFit,
+            fontSize = attrs.fontSize,
             text = attrs.text || '';
         delete attrs.shrinkToFit;
+        delete attrs.fontSize;
         delete attrs.text;
         
         this.callSuper(parent, attrs);
@@ -136,6 +145,7 @@ gv.Button = new JS.Class('Button', myt.SimpleButton, {
             whiteSpace:'nowrap',
             domClass:'myt-Text mytButtonText'
         });
+        if (fontSize) textView.setFontSize(fontSize);
         if (shrinkToFit) this.applyConstraint('__update', [this, 'inset', this, 'outset', textView, 'width']);
     },
     
@@ -144,8 +154,6 @@ gv.Button = new JS.Class('Button', myt.SimpleButton, {
     setText: function(v) {
         if (this.inited) this.textView.setText(v);
     },
-    
-    setTooltip: function(v) {this.domElement.title = v;},
     
     
     // Methods /////////////////////////////////////////////////////////////////
@@ -166,6 +174,11 @@ gv.CircleButton = new JS.Class('CircleButton', gv.Button, {
         attrs.width = attrs.height = 18;
         
         this.callSuper(parent, attrs);
+        
+        var textView = this.textView;
+        textView.setAlign('center');
+        textView.setValign('middle');
+        myt.FontAwesome.registerForNotification(textView);
     }
 });
 
@@ -190,6 +203,8 @@ gv.Slider = new JS.Class('Slider', myt.Slider, {
         delete attrs.text;
         
         this.callSuper(parent, attrs);
+        
+        this.thumb.setFocusable(false);
         
         var textView = this.textView = new myt.Text(this, {
             y:5, 

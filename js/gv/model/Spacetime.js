@@ -109,31 +109,26 @@ gv.Spacetime = new JS.Class('Spacetime', myt.Eventable, {
     
     // Time
     start: function() {
-        var self = this;
-        if (!self._intervalId) {
-            self._intervalId = setInterval(
-                function() {
-                    if (!self._paused) self._loop();
-                }, gv.MILLIS_PER_CALC
-            );
-        }
-    },
-    
-    pause: function() {
-        this._paused = true;
-    },
-    
-    resume: function() {
-        this._paused = false;
+        var self = this,
+            app = gv.app;
+        if (!self.isRunning()) self._intervalId = setInterval(function() {self._loop();}, gv.MILLIS_PER_CALC);
+        
+        app.playBtn.setDisabled(true);
+        app.pauseBtn.setDisabled(false);
     },
     
     stop: function() {
-        clearInterval(this._intervalId);
-        delete this._intervalId;
+        var self = this,
+            app = gv.app;
+        clearInterval(self._intervalId);
+        delete self._intervalId;
+        
+        app.pauseBtn.setDisabled(true);
+        app.playBtn.setDisabled(false);
     },
     
     isRunning: function() {
-        return !this._paused && this._intervalId;
+        return this._intervalId;
     },
     
     // Main Loop
