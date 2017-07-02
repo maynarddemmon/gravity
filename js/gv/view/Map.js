@@ -48,11 +48,7 @@ gv.Map = new JS.Class('Map', myt.View, {
     setCenterMob: function(v) {
         if (v !== this._centerMob) {
             this._centerMob = v;
-            
-            if (this.inited) {
-                gv.app.updateCenterMobLabel();
-                this.forceUpdate();
-            }
+            if (this.inited) this.forceUpdate();
         }
     },
     getCenterMob: function() {return this._centerMob;},
@@ -163,12 +159,12 @@ gv.Map = new JS.Class('Map', myt.View, {
             mobs = GV.spacetime.getAllMobs(),
             i = mobs.length,
             mob,
-            centerMob = self.getCenterMob() || {x:0, y:0},
+            centerMob = self.getCenterMob(),
             highlightMob = GV.app.highlightMob,
             
             scale = self._distanceScale,
-            offsetX = halfMapSize - centerMob.x * scale,
-            offsetY = halfMapSize - centerMob.y * scale,
+            offsetX = halfMapSize - (centerMob ? centerMob.x : 0) * scale,
+            offsetY = halfMapSize - (centerMob ? centerMob.y : 0) * scale,
             
             type, mobCx, mobCy, mobR, mobHaloR, color,
             cicFunc = GV.circleIntersectsCircle,
@@ -275,22 +271,16 @@ gv.Map = new JS.Class('Map', myt.View, {
         }
         
         // Draw the highlight if necessary
-        if (highlightMob) {
-            mobR = highlightMob.radius * scale;
-            var highlightRadius = Math.max(mobR + 4, 4);
-            mobCx = offsetX + highlightMob.x * scale;
-            mobCy = offsetY + highlightMob.y * scale;
-            
-            labelLayer.beginPath();
-            self._drawCircle(labelLayer, mobCx, mobCy, highlightRadius);
-            labelLayer.setLineWidth(1.0);
-            labelLayer.setStrokeStyle('#00ff00');
-            labelLayer.stroke();
-            
-            labelLayer.setFillStyle('#00ff00');
-            labelLayer.setFont('10px "Lucida Console", Monaco, monospace');
-            labelLayer.setTextAlign('center');
-            labelLayer.fillText(highlightMob.label, mobCx, mobCy - highlightRadius - 4);
+        if (highlightMob && highlightMob !== centerMob) {
+            self._drawHighlight(
+                labelLayer, scale, offsetX, offsetY, highlightMob, 8, '#00ff00',
+                centerMob ? centerMob.measureDistance(highlightMob) : null
+            );
+        }
+        
+        // Draw the center mob highlight
+        if (centerMob) {
+            self._drawHighlight(labelLayer, scale, offsetX, offsetY, centerMob, 16, '#aaffaa');
         }
         
         // Combine Data Accumulators
@@ -303,6 +293,36 @@ gv.Map = new JS.Class('Map', myt.View, {
         
         // Redraw
         self._mobsLayer.redraw(haloData);
+    },
+    
+    /** @private */
+    _drawHighlight: function(layer, scale, offsetX, offsetY, mob, minRadius, color, distance) {
+        var self = this,
+            mapSize = 2 * self._halfMapSize,
+            mobR = mob.radius * scale,
+            highlightRadius = Math.max(mobR + 2, minRadius),
+            mobCx = offsetX + mob.x * scale,
+            mobCy = offsetY + mob.y * scale,
+            label = mob.label + (distance != null ? ' - ' + gv.formatMetersForDistance(distance, true) : ''),
+            tw, th, edgeInset = 4;
+        
+        layer.beginPath();
+        self._drawCircle(layer, mobCx, mobCy, highlightRadius);
+        layer.setLineWidth(1.5);
+        layer.setStrokeStyle(color);
+        layer.stroke();
+        
+        layer.setFillStyle(color);
+        layer.setFont('10px "Lucida Console", Monaco, monospace');
+        
+        tw = layer.measureText(label).width;
+        th = 8;
+        
+        layer.fillText(
+            label, 
+            Math.max(edgeInset, Math.min(mapSize - edgeInset - tw, mobCx - (tw / 2))),
+            Math.max(edgeInset + th, Math.min(mapSize - (edgeInset + th) - th, mobCy - highlightRadius - 4))
+        );
     },
     
     /** @private */

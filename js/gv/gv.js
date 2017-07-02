@@ -63,7 +63,7 @@ gv = (function() {
             planet:  [ 0.0, 0.75,  1.0, 0.0],
             moon:    [ 1.0,  1.0,  1.0, 0.0],
             asteroid:[0.75, 0.75, 0.75, 0.0],
-            ship:    [ 0.0,  1.0,  0.0, 0.0]
+            ship:    [ 0.0,  0.75,  0.0, 0.0]
         },
         
         // A reference to the gv.App object
@@ -117,6 +117,23 @@ gv = (function() {
                     y:cy + r * yDiff / distance
                 };
             }
+        },
+        
+        formatMeters: function(v, abbr, fix) {
+            fix = fix == null ? 2 : fix;
+            
+            if (v >= 100000000) return (v / this.AU).toFixed(fix + 2) + (abbr ? ' au' : ' astronomical units');
+            if (v >= 1000000) return (v / 1000000).toFixed(fix) + (abbr ? ' mm' : ' megameters');
+            if (v >= 1000) return (v / 1000).toFixed(fix) + (abbr ? ' km' : ' kilometers');
+            return v.toFixed(fix) + (abbr ? ' m' : ' meters');
+        },
+        
+        formatMetersForDistance: function(v, abbr, fix) {
+            fix = fix == null ? 2 : fix;
+            
+            if (v >= 1000000000) return (v / this.AU).toFixed(fix + 2) + (abbr ? ' au' : ' astronomical units');
+            if (v >= 10000) return (v / 10000).toFixed(fix) + (abbr ? ' km' : ' kilometers');
+            return v.toFixed(fix) + (abbr ? ' m' : ' meters');
         }
     };
 })();

@@ -66,10 +66,14 @@ gv.Mob = new JS.Class('Mob', myt.Eventable, {
     },
     
     measureDistance: function(mob) {
-        return Math.sqrt(this.measureDistanceSquared(mob));
+        return Math.sqrt(this.measureCenterDistanceSquared(mob)) - this.radius - mob.radius;
     },
     
-    measureDistanceSquared: function(mob) {
+    measureCenterDistance: function(mob) {
+        return Math.sqrt(this.measureCenterDistanceSquared(mob));
+    },
+    
+    measureCenterDistanceSquared: function(mob) {
         var diffX = mob.x - this.x,
             diffY = mob.y - this.y;
         return (diffX * diffX) + (diffY * diffY);
@@ -100,7 +104,7 @@ gv.Mob = new JS.Class('Mob', myt.Eventable, {
         var self = this,
             dx = self.x - mob.x,
             dy = self.y - mob.y,
-            distance = self.measureDistance(mob),
+            distance = self.measureCenterDistance(mob),
             targetDistance = self.radius + mob.radius + 0.125, // 0.125 meters extra
             scale;
             
@@ -182,7 +186,7 @@ console.log('COLLISION!!!', mob.label, self.label);
     incrementDeltaV: function(mob) {
         var self = this,
             radiansToMob = Math.atan2(mob.y - self.y, mob.x - self.x),
-            dv = gv.G * mob.mass / self.measureDistanceSquared(mob);
+            dv = gv.G * mob.mass / self.measureCenterDistanceSquared(mob);
         self.dvx += Math.cos(radiansToMob) * dv;
         self.dvy += Math.sin(radiansToMob) * dv;
     },
