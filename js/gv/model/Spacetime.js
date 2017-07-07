@@ -45,12 +45,13 @@ gv.Spacetime = new JS.Class('Spacetime', myt.Eventable, {
         }
     },
     
-    getNearestMob: function(pos) {
+    getNearestMob: function(pos, mobToIgnore) {
         var mobs = this._allMobs, 
             i = mobs.length, mob,
             distance, nearestDistance, nearestMob;
         while (i) {
             mob = mobs[--i];
+            if (mob === mobToIgnore) continue;
             distance = mob.measureCenterDistance(pos) - mob.radius;
             if (distance < nearestDistance || !nearestMob) {
                 nearestDistance = distance;

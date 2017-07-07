@@ -18,16 +18,19 @@ gv.App = new JS.Class('App', myt.View, {
         
         var self = this,
             M = myt,
+            g = myt.global,
             GV = gv;
         
         attrs.bgColor = '#003300';
         attrs.minWidth = attrs.minHeight = 600;
         attrs.focusable = true;
         attrs.focusEmbellishment = false;
-        attrs.activationKeys = [32,37,38,39,40];
+        attrs.activationKeys = [13,32,37,38,39,40,187,189];
         
         self.callSuper(parent, attrs);
         GV.app = self;
+        
+        self.attachToDom(g.mouse, '_preventContextMenu', 'contextmenu', true);
         
         // Create Spacetime
         var spacetime = GV.spacetime = new GV.Spacetime();
@@ -35,7 +38,7 @@ gv.App = new JS.Class('App', myt.View, {
         
         // Build UI
         GV.map = self.map = new GV.Map(self, {
-            scaleValue:7, // 14.2 earth/moon
+            scaleValue:1, // 14.2 earth/moon
             centerMob:spacetime.getMobByLabel('Spaceship')
         });
         
@@ -54,7 +57,7 @@ gv.App = new JS.Class('App', myt.View, {
             }
         }]);
         
-        new GV.Slider(rightPanel, {x:51, y:5, width:249, value:0, minValue:0, maxValue:24}, [{
+        self.timescaleSlider = new GV.Slider(rightPanel, {x:51, y:5, width:249, value:0, minValue:0, maxValue:24}, [{
             setValue: function(v) {
                 this.callSuper(v);
                 
@@ -134,12 +137,29 @@ gv.App = new JS.Class('App', myt.View, {
     },
     getPlayerShip: function() {return this._playerShip;},
     
+    setSelectedMob: function(v) {
+        if (this._selectedMob !== v) {
+            this._selectedMob = v;
+            
+            // Force a redraw if spacetime is not updating
+            var GV = gv;
+            if (!GV.spacetime.isRunning()) GV.map.forceUpdate();
+        }
+    },
+    getSelectedMob: function() {return this._selectedMob;},
+    isSelectedMob: function(mob) {return this._selectedMob === mob;},
+    
     setSimulatedSecondsPerTimeSlice: function(v) {
         this.simulatedSecondsPerTimeSlice = v;
     },
     
     
     // Methods /////////////////////////////////////////////////////////////////
+    /** @private */
+    _preventContextMenu: function(event) {
+        // Do nothing so the context menu event is supressed.
+    },
+    
     updateScaleLabel: function() {
         if (!this._uiReady) return;
         this._scaleLabel.setText('Scale:' + gv.formatMeters(this.map.inverseDistanceScale) + '/pixel');
@@ -152,10 +172,16 @@ gv.App = new JS.Class('App', myt.View, {
     
     doActivationKeyDown: function(key, isRepeat) {
         var spacetime = gv.spacetime,
+            map = gv.map,
             ship = this.getPlayerShip();
         if (ship) {
             switch (key) {
+                case 13: // Enter
+                    // Recenter on user's ship
+                    if (map.getCenterMob() !== ship) map.setCenterMob(ship);
+                    break;
                 case 32: // Spacebar
+                    // Pause/Play spacetime
                     if (spacetime.isRunning()) {
                         spacetime.stop();
                     } else {
@@ -173,6 +199,14 @@ gv.App = new JS.Class('App', myt.View, {
                     break;
                 case 40: // Down
                     ship.decreaseThrust();
+                    break;
+                case 187: // Equals Key (+)
+                    // Slow down spacetime
+                    this.timescaleSlider.setValue(this.timescaleSlider.getValue() + 1);
+                    break;
+                case 189: // Dash Key (-)
+                    // Speed up spacetime
+                    this.timescaleSlider.setValue(this.timescaleSlider.getValue() - 1);
                     break;
             }
         }
@@ -422,26 +456,26 @@ gv.App = new JS.Class('App', myt.View, {
         }
         
         // Other Stars
-        /*var LIGHT_YEAR = 9.461e15;
+        var LIGHT_YEAR = 9.461e15;
         
         var proximaCentauri = new GV.Mob({x:4.24 * LIGHT_YEAR, y:0, vx:0, vy:0, mass:2.446e29, density:5680, type:'star', label:'Proxima Centauri'});
         mobs.push(proximaCentauri);
-        */
+        
         
         // Ships
-        var ship = new GV.Ship({playerShip:true, mass:1.0e6, density:100, label:'Spaceship'});
-        GV.giveMobCircularOrbit(ship, earth, 1.30e7, 0);
+        var ship = new GV.Ship({playerShip:true, mass:1.0e6, density:250, label:'Spaceship'});
+        GV.giveMobCircularOrbit(ship, earth, 1.45e7, 0);
         mobs.push(ship);
         
-        var ship4 = new GV.Ship({mass:2.0e6, density:100, label:'Spaceship 4'});
-        GV.giveMobCircularOrbit(ship4, earth, 1.3001e7, 0);
-        mobs.push(ship4);
-        
-        var ship2 = new GV.Ship({mass:1.0e6, density:100, label:'Spaceship 2'});
-        GV.giveMobCircularOrbit(ship2, earth, 1.31e7, 0);
+        var ship2 = new GV.Ship({mass:2.0e6, density:250, label:'Spaceship 2'});
+        GV.giveMobCircularOrbit(ship2, earth, 1.45006e7, 0);
         mobs.push(ship2);
         
-        var ship3 = new GV.Ship({mass:1.0e6, density:100, label:'Spaceship 3'});
+        var iss = new GV.Ship({mass:419.6e6, density:250, label:'iss'});
+        GV.giveMobCircularOrbit(iss, earth, 1.605e7, 0);
+        mobs.push(iss);
+        
+        var ship3 = new GV.Ship({mass:1.0e6, density:250, label:'Spaceship 3'});
         GV.giveMobCircularOrbit(ship3, luna, 5.0e6, 0);
         mobs.push(ship3);
         

@@ -82,18 +82,26 @@ gv.Map = new JS.Class('Map', myt.View, {
     // Methods /////////////////////////////////////////////////////////////////
     /** @private */
     _handleClick: function(event) {
-        var highlightMob = gv.app.highlightMob;
-        if (highlightMob) this.setCenterMob(highlightMob);
+        var app = gv.app,
+            highlightMob = app.highlightMob;
+        if (highlightMob) {
+            if (myt.global.keys.isAltKeyDown()) {
+                this.setCenterMob(highlightMob);
+                if (app.isSelectedMob(highlightMob)) app.setSelectedMob();
+            } else {
+                if (app.isSelectedMob(highlightMob)) {
+                    app.setSelectedMob();
+                } else if (this.getCenterMob() !== highlightMob) {
+                    app.setSelectedMob(highlightMob);
+                }
+            }
+        }
     },
     
     /** @private */
     _handleMove: function(event) {
         var pos = myt.MouseObservable.getMouseFromEventRelativeToView(event, this._mobsLayer);
-        gv.app.setHighlightMob(gv.spacetime.getNearestMob(this._convertPixelsToMeters(pos)));
-        
-        // Used for shader drawing by mouse position
-        //this._mobsLayer.mouseX = pos.x;
-        //this._mobsLayer.mouseY = pos.y;
+        gv.app.setHighlightMob(gv.spacetime.getNearestMob(this._convertPixelsToMeters(pos), this.getCenterMob()));
     },
     
     /** Converts a position in pixels into a position in spacetime meters.
@@ -151,7 +159,9 @@ gv.Map = new JS.Class('Map', myt.View, {
         
         if (halfMapSize <= 0) return;
         
-        var GV = gv,
+        var GEOM = myt.Geometry,
+            GV = gv,
+            app = GV.app,
             centerToCornerMapSize = Math.SQRT2 * halfMapSize,
             HALO_RADIUS_BY_TYPE = GV.HALO_RADIUS_BY_TYPE,
             MOB_COLOR_BY_TYPE = GV.MOB_COLOR_BY_TYPE,
@@ -160,7 +170,8 @@ gv.Map = new JS.Class('Map', myt.View, {
             i = mobs.length,
             mob,
             centerMob = self.getCenterMob(),
-            highlightMob = GV.app.highlightMob,
+            highlightMob = app.highlightMob,
+            selectedMob = app.getSelectedMob(),
             
             scale = self._distanceScale,
             offsetX = halfMapSize - (centerMob ? centerMob.x : 0) * scale,
@@ -169,11 +180,12 @@ gv.Map = new JS.Class('Map', myt.View, {
             type, mobCx, mobCy, mobR, mobHaloR, color,
             cicFunc = GV.circleIntersectsCircle,
             
-            labelLayer = self._labelLayer,
+            layer = self._labelLayer,
             
             canvasMobs = [],
             canvasMobsLen,
             mobInfo,
+            angle, cosA, sinA, endR,
             
             // Use two data accumulators to avoid prepending and concating large
             // arrays since that gets CPU intensive.
@@ -231,14 +243,16 @@ gv.Map = new JS.Class('Map', myt.View, {
             if (cicFunc(halfMapSize, halfMapSize, centerToCornerMapSize, mobCx, mobCy, mobHaloR)) {
                 color = MOB_COLOR_BY_TYPE[type];
                 if (type === 'ship') {
-                    appendTo(
-                        haloData, mobCx, mobCy, rotation, 2 * mobHaloR, color, 
-                        Math.max(0, 1.0 - (mobHaloR / 1000)), 3
-                    );
+                    if (mob !== centerMob) {
+                        appendTo(
+                            haloData, mobCx, mobCy, rotation, 2 * mobHaloR, color, 
+                            Math.max(0, 1.0 - (mobHaloR / 1000)), 3
+                        );
+                    }
                 } else {
                     appendTo(
                         haloData, mobCx, mobCy, rotation, 2 * mobHaloR, color, 
-                        Math.max(0, 0.5 - (mobHaloR / 1000)), 1
+                        Math.max(0, 0.75 - (mobHaloR / 1000)), 1
                     );
                 }
                 
@@ -257,30 +271,77 @@ gv.Map = new JS.Class('Map', myt.View, {
             }
         }
         
-        labelLayer.clear();
+        layer.clear();
         
         // Draw canvas mobs if necessary
         canvasMobsLen = canvasMobs.length;
         while (canvasMobsLen) {
             mobInfo = canvasMobs[--canvasMobsLen];
             
-            labelLayer.beginPath();
-            self._drawCircle(labelLayer, mobInfo[0], mobInfo[1], mobInfo[3]);
-            labelLayer.setFillStyle(self.convertColorToHex(mobInfo[4]));
-            labelLayer.fill();
+            layer.beginPath();
+            self._drawCircle(layer, mobInfo[0], mobInfo[1], mobInfo[3]);
+            layer.setFillStyle(self.convertColorToHex(mobInfo[4]));
+            layer.fill();
         }
         
-        // Draw the highlight if necessary
-        if (highlightMob && highlightMob !== centerMob) {
-            self._drawHighlight(
-                labelLayer, scale, offsetX, offsetY, highlightMob, 8, '#00ff00',
-                centerMob ? centerMob.measureDistance(highlightMob) : null
-            );
+        // Draw the highlight mob if necessary
+        if (highlightMob && highlightMob !== centerMob && highlightMob !== selectedMob) {
+            self._drawHighlight(layer, scale, offsetX, offsetY, highlightMob, 8, '#009900');
+        }
+        
+        // Draw the selected mob if necessary
+        if (selectedMob && selectedMob !== centerMob) {
+            self._drawHighlight(layer, scale, offsetX, offsetY, selectedMob, 8, '#669966');
         }
         
         // Draw the center mob highlight
         if (centerMob) {
-            self._drawHighlight(labelLayer, scale, offsetX, offsetY, centerMob, 16, '#aaffaa');
+            mobCx = offsetX + centerMob.x * scale;
+            mobCy = offsetY + centerMob.y * scale;
+            mobR = Math.max(centerMob.radius * scale, 40),
+            
+            // Directional arrow
+            layer.beginPath();
+            layer.moveTo(mobCx, mobCy);
+            angle = centerMob.angle - 0.1;
+            layer.lineTo(mobCx + mobR * Math.cos(angle), mobCy + mobR * Math.sin(angle));
+            angle += 0.1;
+            layer.lineTo(mobCx + mobR * Math.cos(angle), mobCy + mobR * Math.sin(angle));
+            angle += 0.1;
+            layer.lineTo(mobCx + mobR * Math.cos(angle), mobCy + mobR * Math.sin(angle));
+            layer.setFillStyle('#00ff00');
+            layer.fill();
+            
+            // Thick inner ring
+            layer.beginPath();
+            layer.circle(mobCx, mobCy, mobR);
+            layer.setLineWidth(3.0);
+            layer.setStrokeStyle('#00ff00');
+            layer.stroke();
+            
+            // Thin middle ring
+            mobR += 4;
+            layer.beginPath();
+            layer.circle(mobCx, mobCy, mobR);
+            layer.setLineWidth(1.5);
+            layer.setStrokeStyle('#009900');
+            layer.stroke();
+            
+            // Thin outer ring
+            mobR += 80;
+            layer.beginPath();
+            layer.circle(mobCx, mobCy, mobR);
+            layer.setLineWidth(1.5);
+            layer.setStrokeStyle('#009900');
+            layer.stroke();
+            
+            // Lines from outer ring to other mobs
+            if (highlightMob && highlightMob !== centerMob) {
+                self._drawLineToMob(layer, highlightMob, centerMob, mobCx, mobCy, scale, mobR);
+            }
+            if (selectedMob && selectedMob !== centerMob) {
+                self._drawLineToMob(layer, selectedMob, centerMob, mobCx, mobCy, scale, mobR);
+            }
         }
         
         // Combine Data Accumulators
@@ -296,33 +357,64 @@ gv.Map = new JS.Class('Map', myt.View, {
     },
     
     /** @private */
-    _drawHighlight: function(layer, scale, offsetX, offsetY, mob, minRadius, color, distance) {
-        var self = this,
-            mapSize = 2 * self._halfMapSize,
-            mobR = mob.radius * scale,
-            highlightRadius = Math.max(mobR + 2, minRadius),
-            mobCx = offsetX + mob.x * scale,
-            mobCy = offsetY + mob.y * scale,
+    _drawLineToMob: function(layer, mob, centerMob, mobCx, mobCy, scale, startRadius) {
+        var targetMobR = Math.max(mob.radius * scale, 8),
+            distance = mob.measureDistance(centerMob),
+            endR = (distance + mob.radius + centerMob.radius) * scale - targetMobR, 
+            angle, cosA, sinA,
             label = mob.label + (distance != null ? ' - ' + gv.formatMetersForDistance(distance, true) : ''),
-            tw, th, edgeInset = 4;
+            tw,
+            tXadj = 0, tYAdj = 0;
         
-        layer.beginPath();
-        self._drawCircle(layer, mobCx, mobCy, highlightRadius);
-        layer.setLineWidth(1.5);
-        layer.setStrokeStyle(color);
-        layer.stroke();
+        angle = Math.atan2(mob.y - centerMob.y, mob.x - centerMob.x);
+        cosA = Math.cos(angle);
+        sinA = Math.sin(angle);
         
-        layer.setFillStyle(color);
+        if (endR > startRadius || endR + 2 * targetMobR < startRadius) {
+            
+            if (endR < startRadius) endR += 2 * targetMobR;
+            
+            endR = Math.min(endR, 4000);
+            
+            layer.beginPath();
+            layer.moveTo(mobCx + startRadius * cosA, mobCy + startRadius * sinA);
+            layer.lineTo(mobCx + endR * cosA, mobCy + endR * sinA);
+            layer.setLineWidth(1.5);
+            layer.setStrokeStyle('#009900');
+            layer.stroke();
+        }
+        
+        layer.setFillStyle('#00ff00');
         layer.setFont('10px "Lucida Console", Monaco, monospace');
         
-        tw = layer.measureText(label).width;
-        th = 8;
+        
+        if (angle > 0 && angle < Math.PI) {
+            tYAdj = 8;
+        } else {
+            tYAdj = -8;
+        }
+        
+        if (angle > Math.PI / 2 || angle < -Math.PI / 2) {
+            tw = layer.measureText(label).width;
+            tXadj = -tw - 4;
+        } else {
+            tXadj = 4;
+        }
         
         layer.fillText(
             label, 
-            Math.max(edgeInset, Math.min(mapSize - edgeInset - tw, mobCx - (tw / 2))),
-            Math.max(edgeInset + th, Math.min(mapSize - (edgeInset + th) - th, mobCy - highlightRadius - 4))
+            mobCx + (startRadius * cosA) + tXadj, 
+            mobCy + (startRadius * sinA) + 3 + tYAdj
         );
+    },
+    
+    /** @private */
+    _drawHighlight: function(layer, scale, offsetX, offsetY, mob, minRadius, color) {
+        layer.beginPath();
+        this._drawCircle(layer, offsetX + mob.x * scale, offsetY + mob.y * scale, Math.max(mob.radius * scale, minRadius));
+        layer.setLineWidth(1.5);
+        layer.setStrokeStyle(color);
+        layer.stroke();
     },
     
     /** @private */
@@ -348,7 +440,6 @@ gv.Map = new JS.Class('Map', myt.View, {
                 a1 -= 0.05;
                 a2 = a1 + 0.1;
                 
-                console.log('arc');
                 layer.moveTo(x, y);
                 layer.lineTo(x + r * Math.cos(a1), y + r * Math.sin(a1));
                 layer.lineTo(p3.x, p3.y);

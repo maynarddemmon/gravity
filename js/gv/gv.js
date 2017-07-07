@@ -55,7 +55,7 @@ gv = (function() {
             planet:1000,
             moon:1000,
             asteroid:5000,
-            ship:600
+            ship:75
         },
         
         MOB_COLOR_BY_TYPE: {
