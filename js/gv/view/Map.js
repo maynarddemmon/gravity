@@ -324,7 +324,7 @@ gv.Map = new JS.Class('Map', myt.View, {
             layer.beginPath();
             layer.circle(mobCx, mobCy, mobR);
             layer.setLineWidth(1.5);
-            layer.setStrokeStyle('#009900');
+            layer.setStrokeStyle('#006600');
             layer.stroke();
             
             // Thin outer ring
@@ -332,7 +332,7 @@ gv.Map = new JS.Class('Map', myt.View, {
             layer.beginPath();
             layer.circle(mobCx, mobCy, mobR);
             layer.setLineWidth(1.5);
-            layer.setStrokeStyle('#009900');
+            layer.setStrokeStyle('#006600');
             layer.stroke();
             
             // Lines from outer ring to other mobs
@@ -362,8 +362,8 @@ gv.Map = new JS.Class('Map', myt.View, {
             distance = mob.measureDistance(centerMob),
             endR = (distance + mob.radius + centerMob.radius) * scale - targetMobR, 
             angle, cosA, sinA,
+            cosVA, sinVA,
             label = mob.label + (distance != null ? ' - ' + gv.formatMetersForDistance(distance, true) : ''),
-            tw,
             tXadj = 0, tYAdj = 0;
         
         angle = Math.atan2(mob.y - centerMob.y, mob.x - centerMob.x);
@@ -371,7 +371,6 @@ gv.Map = new JS.Class('Map', myt.View, {
         sinA = Math.sin(angle);
         
         if (endR > startRadius || endR + 2 * targetMobR < startRadius) {
-            
             if (endR < startRadius) endR += 2 * targetMobR;
             
             endR = Math.min(endR, 4000);
@@ -380,13 +379,42 @@ gv.Map = new JS.Class('Map', myt.View, {
             layer.moveTo(mobCx + startRadius * cosA, mobCy + startRadius * sinA);
             layer.lineTo(mobCx + endR * cosA, mobCy + endR * sinA);
             layer.setLineWidth(1.5);
-            layer.setStrokeStyle('#009900');
+            layer.setStrokeStyle('#006600');
             layer.stroke();
         }
         
+        // Draw relative velocity line
+        var dv = centerMob.measureRelativeVelocity(mob);
+        var velocityAngle = Math.atan2(dv.y, dv.x);
+        var speed = Math.sqrt((dv.x * dv.x) + (dv.y * dv.y));
+        
+        // FIXME: red color if above crash threshold
+        var velocityColor;
+        if (speed <= gv.SAFE_SHIP_COLLISION_THRESHOLD) {
+            velocityColor = '#0099ff';
+        } else {
+            velocityColor = '#ff3300';
+        }
+        
+        // Convert to logarithmic scale
+        if (speed > 2) speed = Math.log2(speed) + 1;
+        speed *= 10; // Make it easier to see.
+        
+        cosVA = Math.cos(velocityAngle);
+        sinVA = Math.sin(velocityAngle);
+        var startX = mobCx + startRadius * cosA,
+            startY = mobCy + startRadius * sinA;
+        
+        layer.beginPath();
+        layer.moveTo(startX, startY);
+        layer.lineTo(startX + speed * cosVA, startY + speed * sinVA);
+        layer.setLineWidth(1.5);
+        layer.setStrokeStyle(velocityColor);
+        layer.stroke();
+        
+        // Draw Label
         layer.setFillStyle('#00ff00');
         layer.setFont('10px "Lucida Console", Monaco, monospace');
-        
         
         if (angle > 0 && angle < Math.PI) {
             tYAdj = 8;
@@ -395,8 +423,7 @@ gv.Map = new JS.Class('Map', myt.View, {
         }
         
         if (angle > Math.PI / 2 || angle < -Math.PI / 2) {
-            tw = layer.measureText(label).width;
-            tXadj = -tw - 4;
+            tXadj = -layer.measureText(label).width - 4;
         } else {
             tXadj = 4;
         }
