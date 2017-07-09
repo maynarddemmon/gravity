@@ -243,12 +243,10 @@ gv.Map = new JS.Class('Map', myt.View, {
             if (cicFunc(halfMapSize, halfMapSize, centerToCornerMapSize, mobCx, mobCy, mobHaloR)) {
                 color = MOB_COLOR_BY_TYPE[type];
                 if (type === 'ship') {
-                    if (mob !== centerMob) {
-                        appendTo(
-                            haloData, mobCx, mobCy, rotation, 2 * mobHaloR, color, 
-                            Math.max(0, 1.0 - (mobHaloR / 1000)), 3
-                        );
-                    }
+                    appendTo(
+                        haloData, mobCx, mobCy, rotation, 2 * mobHaloR, color, 
+                        Math.max(0, 1.0 - (mobHaloR / 1000)), 3
+                    );
                 } else {
                     appendTo(
                         haloData, mobCx, mobCy, rotation, 2 * mobHaloR, color, 
@@ -272,6 +270,8 @@ gv.Map = new JS.Class('Map', myt.View, {
         }
         
         layer.clear();
+        
+        layer.setFont('11px "Lucida Console", Monaco, monospace');
         
         // Draw canvas mobs if necessary
         canvasMobsLen = canvasMobs.length;
@@ -303,11 +303,11 @@ gv.Map = new JS.Class('Map', myt.View, {
             // Directional arrow
             layer.beginPath();
             layer.moveTo(mobCx, mobCy);
-            angle = centerMob.angle - 0.1;
+            angle = centerMob.angle - 0.05;
             layer.lineTo(mobCx + mobR * Math.cos(angle), mobCy + mobR * Math.sin(angle));
-            angle += 0.1;
+            angle += 0.05;
             layer.lineTo(mobCx + mobR * Math.cos(angle), mobCy + mobR * Math.sin(angle));
-            angle += 0.1;
+            angle += 0.05;
             layer.lineTo(mobCx + mobR * Math.cos(angle), mobCy + mobR * Math.sin(angle));
             layer.setFillStyle('#00ff00');
             layer.fill();
@@ -358,13 +358,18 @@ gv.Map = new JS.Class('Map', myt.View, {
     
     /** @private */
     _drawLineToMob: function(layer, mob, centerMob, mobCx, mobCy, scale, startRadius) {
-        var targetMobR = Math.max(mob.radius * scale, 8),
+        var GV = gv,
+            targetMobR = Math.max(mob.radius * scale, 8),
             distance = mob.measureDistance(centerMob),
             endR = (distance + mob.radius + centerMob.radius) * scale - targetMobR, 
             angle, cosA, sinA,
             cosVA, sinVA,
-            label = mob.label + (distance != null ? ' - ' + gv.formatMetersForDistance(distance, true) : ''),
-            tXadj = 0, tYAdj = 0;
+            label = mob.label + (distance != null ? ' - ' + GV.formatMetersForDistance(distance, true) : ''),
+            tXadj = 0, tYAdj = 0, startX, startY,
+            dv, velocityAngle, speed, velocityColor,
+            angleDiff,
+            tangentialVel, normalVel,
+            normalVelLabel, tangentialVelLabel;
         
         angle = Math.atan2(mob.y - centerMob.y, mob.x - centerMob.x);
         cosA = Math.cos(angle);
@@ -384,26 +389,26 @@ gv.Map = new JS.Class('Map', myt.View, {
         }
         
         // Draw relative velocity line
-        var dv = centerMob.measureRelativeVelocity(mob);
-        var velocityAngle = Math.atan2(dv.y, dv.x);
-        var speed = Math.sqrt((dv.x * dv.x) + (dv.y * dv.y));
+        dv = centerMob.measureRelativeVelocity(mob);
+        velocityAngle = Math.atan2(dv.y, dv.x);
+        speed = Math.sqrt((dv.x * dv.x) + (dv.y * dv.y));
+        velocityColor = speed <= GV.SAFE_SHIP_COLLISION_THRESHOLD ? '#00ccff' : '#ff6600';
         
-        // FIXME: red color if above crash threshold
-        var velocityColor;
-        if (speed <= gv.SAFE_SHIP_COLLISION_THRESHOLD) {
-            velocityColor = '#0099ff';
-        } else {
-            velocityColor = '#ff3300';
-        }
+        // Parallel and perpendicular component of velocity relative to the target
+        angleDiff = angle - velocityAngle;
+        tangentialVel = speed * Math.sin(angleDiff);
+        normalVel = -speed * Math.cos(angleDiff);
+        normalVelLabel =     '    normal ' + (normalVel > 0 ? ' ' : '') + (normalVel).toFixed(2) + ' m/sec';
+        tangentialVelLabel = 'tangential '  + (tangentialVel > 0 ? ' ' : '') + (tangentialVel).toFixed(2)  + ' m/sec';
         
         // Convert to logarithmic scale
         if (speed > 2) speed = Math.log2(speed) + 1;
-        speed *= 10; // Make it easier to see.
+        speed *= 16; // Make it easier to see.
         
         cosVA = Math.cos(velocityAngle);
         sinVA = Math.sin(velocityAngle);
-        var startX = mobCx + startRadius * cosA,
-            startY = mobCy + startRadius * sinA;
+        startX = mobCx + startRadius * cosA;
+        startY = mobCy + startRadius * sinA;
         
         layer.beginPath();
         layer.moveTo(startX, startY);
@@ -414,25 +419,19 @@ gv.Map = new JS.Class('Map', myt.View, {
         
         // Draw Label
         layer.setFillStyle('#00ff00');
-        layer.setFont('10px "Lucida Console", Monaco, monospace');
+        tYAdj = (angle > 0 && angle < Math.PI) ? 12 : -33;
+        tXadj = (angle > GV.HALF_PI || angle < -GV.HALF_PI) ? -layer.measureText(label).width - 5 : 5;
+        layer.fillText(label, mobCx + startRadius * cosA + tXadj, mobCy + startRadius * sinA + tYAdj);
         
-        if (angle > 0 && angle < Math.PI) {
-            tYAdj = 8;
-        } else {
-            tYAdj = -8;
-        }
+        // Draw relative velocity labels
+        layer.setFillStyle(velocityColor);
+        tYAdj = (angle > 0 && angle < Math.PI) ? 26 : -19;
+        tXadj = (angle > GV.HALF_PI || angle < -GV.HALF_PI) ? -layer.measureText(normalVelLabel).width - 5 : 5;
+        layer.fillText(normalVelLabel, mobCx + startRadius * cosA + tXadj, mobCy + startRadius * sinA + tYAdj);
         
-        if (angle > Math.PI / 2 || angle < -Math.PI / 2) {
-            tXadj = -layer.measureText(label).width - 4;
-        } else {
-            tXadj = 4;
-        }
-        
-        layer.fillText(
-            label, 
-            mobCx + (startRadius * cosA) + tXadj, 
-            mobCy + (startRadius * sinA) + 3 + tYAdj
-        );
+        tYAdj = (angle > 0 && angle < Math.PI) ? 40 : -5;
+        tXadj = (angle > GV.HALF_PI || angle < -GV.HALF_PI) ? -layer.measureText(tangentialVelLabel).width - 5 : 5;
+        layer.fillText(tangentialVelLabel, mobCx + startRadius * cosA + tXadj, mobCy + startRadius * sinA + tYAdj);
     },
     
     /** @private */

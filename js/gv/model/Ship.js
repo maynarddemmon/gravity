@@ -54,11 +54,15 @@ gv.Ship = new JS.Class('Ship', gv.Mob, {
         var thrust = this.thrust;
         if (thrust >= 0) {
             // Increase Main Thrust
-            thrust = Math.max(0, thrust + 0.25);
+            thrust = Math.max(0, thrust + 0.12);
         } else {
             // Decrease Breaking
-            thrust = Math.min(0, thrust + 0.0625);
+            thrust = Math.min(0, thrust + 0.03);
         }
+        
+        // Snap to zero when close so it's easy for a user to stop thrust
+        if (Math.abs(thrust) < 0.005) thrust = 0;
+        
         this.setThrust(thrust);
     },
     
@@ -66,11 +70,15 @@ gv.Ship = new JS.Class('Ship', gv.Mob, {
         var thrust = this.thrust;
         if (thrust > 0) {
             // Decrease Main Thrust
-            thrust = Math.max(0, thrust - 0.25);
+            thrust = Math.max(0, thrust - 0.12);
         } else {
             // Increase Breaking
-            thrust = Math.min(0, thrust - 0.0625);
+            thrust = Math.min(0, thrust - 0.03);
         }
+        
+        // Snap to zero when close so it's easy for a user to stop thrust
+        if (Math.abs(thrust) < 0.005) thrust = 0;
+        
         this.setThrust(thrust);
     },
     

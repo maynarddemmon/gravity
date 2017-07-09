@@ -42,6 +42,8 @@ gv = (function() {
         // Used in volume of a sphere calculations.
         THREE_OVER_FOUR_PI:3 / (4 * Math.PI),
         
+        HALF_PI:Math.PI / 2,
+        
         TWO_PI:Math.PI * 2,
         
         // The gravitational constant
@@ -55,13 +57,13 @@ gv = (function() {
             planet:1000,
             moon:1000,
             asteroid:5000,
-            ship:75
+            ship:10
         },
         
         MOB_COLOR_BY_TYPE: {
             star:    [ 1.0,  1.0,  0.0, 0.0],
             planet:  [ 0.0, 0.75,  1.0, 0.0],
-            moon:    [ 1.0,  1.0,  1.0, 0.0],
+            moon:    [0.80, 0.75, 0.80, 0.0],
             asteroid:[0.75, 0.75, 0.75, 0.0],
             ship:    [ 0.0,  0.75,  0.0, 0.0]
         },
@@ -132,7 +134,7 @@ gv = (function() {
             fix = fix == null ? 2 : fix;
             
             if (v >= 1000000000) return (v / this.AU).toFixed(fix + 2) + (abbr ? ' au' : ' astronomical units');
-            if (v >= 10000) return (v / 10000).toFixed(fix) + (abbr ? ' km' : ' kilometers');
+            if (v >= 10000) return (v / 1000).toFixed(fix) + (abbr ? ' km' : ' kilometers');
             return v.toFixed(fix) + (abbr ? ' m' : ' meters');
         }
     };

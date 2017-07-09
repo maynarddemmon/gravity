@@ -83,11 +83,11 @@
 			alpha = plotLine(0.5, 1.5 * fwidth(r), r);
 			
 			// Add smaller triangle at the tip
-			pt = scale(vec2(4.0)) * pt;
-			pt += vec2(cos(vRotation), sin(vRotation)) * -2.5;
+			//pt = scale(vec2(4.0)) * pt;
+			//pt += vec2(cos(vRotation), sin(vRotation)) * -2.5;
 			
-			r = polygon(pt, vRotation, 3.0);
-			alpha += 0.75 * fill(0.5 - fwidth(r), 0.5, r);
+			//r = polygon(pt, vRotation, 3.0);
+			//alpha += 0.75 * fill(0.5 - fwidth(r), 0.5, r);
 		}
 	#endif
 		gl_FragColor = vColor * alpha;
