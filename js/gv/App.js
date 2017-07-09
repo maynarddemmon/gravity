@@ -164,7 +164,7 @@ gv.App = new JS.Class('App', myt.View, {
     
     updateShipThrustLabel: function() {
         var ship = this.getPlayerShip();
-        this._shipThrustLabel.setText('Ship Thrust:' + (ship ? (ship.thrust).toFixed(2) : '-'));
+        this._shipThrustLabel.setText('Ship Thrust:' + (ship ? (ship.thrust).toFixed(2) + ' vel/sec' : '-'));
     },
     
     doActivationKeyDown: function(key, isRepeat) {

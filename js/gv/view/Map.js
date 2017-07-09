@@ -185,6 +185,7 @@ gv.Map = new JS.Class('Map', myt.View, {
             canvasMobs = [],
             canvasMobsLen,
             mobInfo,
+            forces, forceCount, forceObj,
             angle, cosA, sinA, endR,
             
             // Use two data accumulators to avoid prepending and concating large
@@ -298,16 +299,37 @@ gv.Map = new JS.Class('Map', myt.View, {
         if (centerMob) {
             mobCx = offsetX + centerMob.x * scale;
             mobCy = offsetY + centerMob.y * scale;
-            mobR = Math.max(centerMob.radius * scale, 40),
+            mobR = Math.max(centerMob.radius * scale, 60),
+            
+            // Forces
+            forces = centerMob.getForces();
+            forceCount = forces.length;
+            while (forceCount) {
+                forceObj = forces[--forceCount];
+                self._drawForce(
+                    layer, forceObj, mobCx, mobCy, scale, mobR + 4,
+                    forceObj.mob === centerMob ? '#990000' : '#006666'
+                );
+            }
+            
+            // Net Force
+            var dvx = centerMob.dvx,
+                dvy = centerMob.dvy;
+            forceObj = {
+                force:Math.sqrt(dvx * dvx + dvy * dvy), 
+                angle:Math.atan2(dvy, dvx), 
+                mob:centerMob
+            };
+            self._drawForce(layer, forceObj, mobCx, mobCy, scale, mobR + 4, '#009900');
             
             // Directional arrow
             layer.beginPath();
             layer.moveTo(mobCx, mobCy);
-            angle = centerMob.angle - 0.05;
+            angle = centerMob.angle - 0.025;
             layer.lineTo(mobCx + mobR * Math.cos(angle), mobCy + mobR * Math.sin(angle));
-            angle += 0.05;
+            angle += 0.025;
             layer.lineTo(mobCx + mobR * Math.cos(angle), mobCy + mobR * Math.sin(angle));
-            angle += 0.05;
+            angle += 0.025;
             layer.lineTo(mobCx + mobR * Math.cos(angle), mobCy + mobR * Math.sin(angle));
             layer.setFillStyle('#00ff00');
             layer.fill();
@@ -315,20 +337,12 @@ gv.Map = new JS.Class('Map', myt.View, {
             // Thick inner ring
             layer.beginPath();
             layer.circle(mobCx, mobCy, mobR);
-            layer.setLineWidth(3.0);
+            layer.setLineWidth(2.0);
             layer.setStrokeStyle('#00ff00');
             layer.stroke();
             
-            // Thin middle ring
-            mobR += 4;
-            layer.beginPath();
-            layer.circle(mobCx, mobCy, mobR);
-            layer.setLineWidth(1.5);
-            layer.setStrokeStyle('#006600');
-            layer.stroke();
-            
             // Thin outer ring
-            mobR += 80;
+            mobR += 60;
             layer.beginPath();
             layer.circle(mobCx, mobCy, mobR);
             layer.setLineWidth(1.5);
@@ -354,6 +368,25 @@ gv.Map = new JS.Class('Map', myt.View, {
         
         // Redraw
         self._mobsLayer.redraw(haloData);
+    },
+    
+    /** @private */
+    _drawForce: function(layer, forceObj, mobCx, mobCy, scale, startRadius, color) {
+        var angle = forceObj.angle,
+            force = forceObj.force,
+            endR = startRadius + 10 * force;
+        
+        layer.beginPath();
+        
+        angle = angle - 0.05;
+        layer.moveTo(mobCx + startRadius * Math.cos(angle), mobCy + startRadius * Math.sin(angle));
+        angle += 0.05;
+        layer.lineTo(mobCx + endR * Math.cos(angle), mobCy + endR * Math.sin(angle));
+        angle += 0.05;
+        layer.lineTo(mobCx + startRadius * Math.cos(angle), mobCy + startRadius * Math.sin(angle));
+        
+        layer.setFillStyle(color);
+        layer.fill();
     },
     
     /** @private */

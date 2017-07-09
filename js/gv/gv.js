@@ -34,10 +34,12 @@ gv = (function() {
         
         // The speed below which ships may collide with other mobs without
         // being destroyed.
-        SAFE_SHIP_COLLISION_THRESHOLD:3.0,
+        SAFE_SHIP_COLLISION_THRESHOLD:2.0,
+        
+        FORCE_DISPLAY_THRESHOLD:0.0001,
         
         // Makes all mobs larger
-        DENSITY_SCALING:8,
+        DENSITY_SCALING:6,
         
         // Used in volume of a sphere calculations.
         THREE_OVER_FOUR_PI:3 / (4 * Math.PI),

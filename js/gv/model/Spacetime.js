@@ -165,11 +165,15 @@ gv.Spacetime = new JS.Class('Spacetime', myt.Eventable, {
             }
         }
         
+        // Reset forces
+        allMobs = self.getAllMobs();
+        allMobsLen = allMobs.length;
+        j = allMobsLen;
+        while (j) allMobs[--j].resetForces();
+        
         // Calculate gravity forces
         mobs = self._mobs;
         i = mobs.length;
-        allMobs = self.getAllMobs();
-        allMobsLen = allMobs.length;
         while (i) {
             mobA = mobs[--i];
             j = allMobsLen;

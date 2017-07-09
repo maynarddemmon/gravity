@@ -17,6 +17,9 @@ gv.Mob = new JS.Class('Mob', myt.Eventable, {
         var mapCenter = attrs.mapCenter;
         delete attrs.mapCenter;
         
+        // Used to show forces on center mobs
+        self._forces = [];
+        
         self.callSuper(attrs);
         
         self._calculateVolumeAndRadius();
@@ -54,6 +57,10 @@ gv.Mob = new JS.Class('Mob', myt.Eventable, {
     // Methods /////////////////////////////////////////////////////////////////
     setMapCenter: function(v) {if (v) gv.map.setCenterMob(this);},
     isMapCenter: function() {return gv.map.getCenterMob() === this;},
+    
+    getForces: function() {
+        return this._forces.sort(function(a, b) {return a.force - b.force;});
+    },
     
     getSpeed: function() {
         var vx = this.vx,
@@ -183,12 +190,19 @@ console.log('COLLISION!!!', mob.label, self.label);
         return newMob;
     },
     
+    resetForces: function() {
+        var self = this;
+        self._forces.length = self.dvx = self.dvy = 0;
+    },
+    
     incrementDeltaV: function(mob) {
         var self = this,
             radiansToMob = Math.atan2(mob.y - self.y, mob.x - self.x),
             dv = gv.G * mob.mass / self.measureCenterDistanceSquared(mob);
         self.dvx += Math.cos(radiansToMob) * dv;
         self.dvy += Math.sin(radiansToMob) * dv;
+        
+        if (self.isMapCenter() && dv > gv.FORCE_DISPLAY_THRESHOLD) self._forces.push({force:dv, angle:radiansToMob, mob:mob});
     },
     
     applyDeltas: function(dt) {
@@ -203,8 +217,5 @@ console.log('COLLISION!!!', mob.label, self.label);
         
         // Update Angle
         self.angle = (self.angle + self.va * dt) % gv.TWO_PI;
-        
-        // Reset
-        self.dvx = self.dvy = 0;
     }
 });
