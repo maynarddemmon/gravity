@@ -123,6 +123,40 @@ gv = (function() {
             }
         },
         
+        getIntersectionOfTwoCircles: function(x1, y1, r1, x2, y2, r2) {
+            var diffX = x1 - x2,
+                diffY = y1 - y2,
+                R = Math.sqrt(diffX * diffX + diffY * diffY);
+            
+            if (R === 0) {
+                // Circles with the same center and same radius intersect
+                // everywhere or nowhere. Either way return an empty result.
+                return [];
+            }
+            
+            // No intersection so return an empty list of results.
+            if (!(Math.abs(r1 - r2) <= R && R <= r1 + r2)) return [];
+            
+            var R2 = R * R,
+                R4 = R2 * R2,
+                a = (r1 * r1 - r2 * r2) / (2 * R2),
+                r2r2 = (r1 * r1 - r2 * r2),
+                c = Math.sqrt(2 * (r1 * r1 + r2 * r2) / R2 - (r2r2 * r2r2) / R4 - 1),
+                
+                fx = (x1 + x2) / 2 + a * (x2 - x1),
+                gx = c * (y2 - y1) / 2,
+                fy = (y1 + y2) / 2 + a * (y2 - y1),
+                gy = c * (x1 - x2) / 2;
+            
+            // Note if gy == 0 and gx == 0 then the circles are tangent and
+            // there is only one solution but that one solution will just be
+            // duplicated as the code is currently written
+            return [
+                {x:fx + gx, y:fy + gy}, 
+                {x:fx - gx, y:fy - gy}
+            ];
+        },
+        
         formatMeters: function(v, abbr, fix) {
             fix = fix == null ? 2 : fix;
             

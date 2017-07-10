@@ -39,7 +39,7 @@ gv.App = new JS.Class('App', myt.View, {
         // Build UI
         GV.map = self.map = new GV.Map(self, {
             scaleValue:0.9, // 14.2 earth/moon
-            centerMob:spacetime.getMobByLabel('Spaceship')
+            centerMob:spacetime.getMobByLabel('My Spaceship')
         });
         
         // Controls
@@ -57,7 +57,7 @@ gv.App = new JS.Class('App', myt.View, {
             }
         }]);
         
-        self.timescaleSlider = new GV.Slider(rightPanel, {x:51, y:5, width:199, value:0, minValue:0, maxValue:21}, [{
+        self.timescaleSlider = new GV.Slider(rightPanel, {x:51, y:5, width:199, value:0, minValue:0, maxValue:25}, [{
             setValue: function(v) {
                 this.callSuper(v);
                 
@@ -85,6 +85,10 @@ gv.App = new JS.Class('App', myt.View, {
                     case 19: timeScale = 60 * 60 * 2; txt = '2 hr/sec'; break;
                     case 20: timeScale = 60 * 60 * 3; txt = '3 hr/sec'; break;
                     case 21: timeScale = 60 * 60 * 5; txt = '5 hr/sec'; break;
+                    case 22: timeScale = 60 * 60 * 6; txt = '6 hr/sec'; break;
+                    case 23: timeScale = 60 * 60 * 8; txt = '8 hr/sec'; break;
+                    case 24: timeScale = 60 * 60 * 10; txt = '10 hr/sec'; break;
+                    case 25: timeScale = 60 * 60 * 12; txt = '12 hr/sec'; break;
                 }
                 this.setText(txt);
                 self._updateTimeScaling(timeScale);
@@ -460,11 +464,11 @@ gv.App = new JS.Class('App', myt.View, {
         
         
         // Ships
-        var ship = new GV.Ship({playerShip:true, mass:1.0e6, density:250, label:'Spaceship'});
+        var ship = new GV.Ship({playerShip:true, mass:1.0e6, density:250, label:'My Spaceship'});
         GV.giveMobCircularOrbit(ship, earth, 1.291e7, 0);
         mobs.push(ship);
         
-        var ship2 = new GV.Ship({mass:2.0e6, density:250, label:'Spaceship 2'});
+        var ship2 = new GV.Ship({mass:2.0e6, density:250, label:'Soyuz'});
         GV.giveMobCircularOrbit(ship2, earth, 1.29105e7, 0);
         mobs.push(ship2);
         
@@ -472,7 +476,7 @@ gv.App = new JS.Class('App', myt.View, {
         GV.giveMobCircularOrbit(iss, earth, 1.3072e7, 0);
         mobs.push(iss);
         
-        var ship3 = new GV.Ship({mass:1.0e6, density:250, label:'Spaceship 3'});
+        var ship3 = new GV.Ship({mass:1.0e6, density:250, label:'Lunar Orbiter'});
         GV.giveMobCircularOrbit(ship3, luna, 5.0e6, 0);
         mobs.push(ship3);
         

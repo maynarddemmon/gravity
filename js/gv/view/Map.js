@@ -33,7 +33,7 @@ gv.Map = new JS.Class('Map', myt.View, {
         self.callSuper(parent, attrs);
         
         self._mobsLayer = new gv.WebGL(self);
-        self._labelLayer = new M.Canvas(self);
+        self._hudLayer = new M.Canvas(self);
         
         self.attachToDom(self, '_handleWheel', 'wheel');
         self.attachToDom(self, '_handleMove', 'mousemove');
@@ -63,14 +63,14 @@ gv.Map = new JS.Class('Map', myt.View, {
         if (this.inited) {
             var self = this,
                 w = self.width,
-                labelLayer = self._labelLayer,
+                hudLayer = self._hudLayer,
                 mobsLayer = self._mobsLayer;
             
             self.setHeight(w);
             mobsLayer.setWidth(w);
             mobsLayer.setHeight(w);
-            labelLayer.setWidth(w);
-            labelLayer.setHeight(w);
+            hudLayer.setWidth(w);
+            hudLayer.setHeight(w);
             
             self._halfMapSize = w / 2;
             
@@ -100,36 +100,34 @@ gv.Map = new JS.Class('Map', myt.View, {
     
     /** @private */
     _handleMove: function(event) {
-        var pos = myt.MouseObservable.getMouseFromEventRelativeToView(event, this._mobsLayer);
-        gv.app.setHighlightMob(gv.spacetime.getNearestMob(this._convertPixelsToMeters(pos), this.getCenterMob()));
-    },
-    
-    /** Converts a position in pixels into a position in spacetime meters.
-        @private */
-    _convertPixelsToMeters: function(pos) {
-        var centerMob = this.getCenterMob() || {x:0, y:0},
-            inverseScale = this.inverseDistanceScale,
-            halfMapSize = this._halfMapSize;
-        return {
-            x:(pos.x - halfMapSize) * inverseScale + centerMob.x, 
-            y:(pos.y - halfMapSize) * inverseScale + centerMob.y
-        };
+        var self = this,
+            pos = myt.MouseObservable.getMouseFromEventRelativeToView(event, self._mobsLayer),
+            centerMob = self.getCenterMob(),
+            inverseScale = self.inverseDistanceScale,
+            halfMapSize = self._halfMapSize;
+        gv.app.setHighlightMob(gv.spacetime.getNearestMob(
+            {
+                // Converts a position in pixels into a position in spacetime meters.
+                x:inverseScale * (pos.x - halfMapSize) + centerMob.x, 
+                y:inverseScale * (pos.y - halfMapSize) + centerMob.y
+            }, centerMob
+        ));
     },
     
     /** @private */
     _handleWheel: function(event) {
         // Limit wheel Y to the allowed exponential values
         var self = this;
-        self._wheelY = Math.min(Math.max(-235, self._wheelY + event.value.deltaY), self._MAX_SCALE_EXPONENT * self._wheelSpeed);
+        self._wheelY = Math.min(Math.max(-190, self._wheelY + event.value.deltaY), self._MAX_SCALE_EXPONENT * self._wheelSpeed);
         self._updateDistanceScale();
     },
     
     /** @private */
     _updateDistanceScale: function() {
-        var newScale = Math.exp(this._wheelY / this._wheelSpeed);
+        var newScale = Math.exp(this._wheelY / this._wheelSpeed),
+            scale = 1 / newScale;
         
         // Set distance scale
-        var scale = 1 / newScale;
         if (scale !== this._distanceScale) {
             this._distanceScale = scale;
             this.inverseDistanceScale = newScale;
@@ -151,16 +149,15 @@ gv.Map = new JS.Class('Map', myt.View, {
         if (!gv.spacetime.isRunning()) this._redraw();
     },
     
-    /** @private */
+    /** Redraw the hud layer and the mobs layer.
+        @private */
     _redraw: function() {
-        // Redraw mobs layer
         var self = this,
             halfMapSize = self._halfMapSize;
         
         if (halfMapSize <= 0) return;
         
-        var GEOM = myt.Geometry,
-            GV = gv,
+        var GV = gv,
             app = GV.app,
             centerToCornerMapSize = Math.SQRT2 * halfMapSize,
             HALO_RADIUS_BY_TYPE = GV.HALO_RADIUS_BY_TYPE,
@@ -173,23 +170,30 @@ gv.Map = new JS.Class('Map', myt.View, {
             highlightMob = app.highlightMob,
             selectedMob = app.getSelectedMob(),
             
+            drawHighlight = highlightMob && highlightMob !== centerMob,
+            drawSelected = selectedMob && selectedMob !== centerMob && selectedMob !== highlightMob,
+            
             scale = self._distanceScale,
             offsetX = halfMapSize - (centerMob ? centerMob.x : 0) * scale,
             offsetY = halfMapSize - (centerMob ? centerMob.y : 0) * scale,
             
-            type, mobCx, mobCy, mobR, mobHaloR, color,
+            type, mobCx, mobCy, mobR, mobHaloR, color, rotation,
             cicFunc = GV.circleIntersectsCircle,
             
-            layer = self._labelLayer,
+            layer = self._hudLayer,
             
             canvasMobs = [],
             canvasMobsLen,
             mobInfo,
             forces, forceCount, forceObj,
+            dvx, dvy,
             angle, cosA, sinA, endR,
             
+            strongestForceMob, distance, orbitSpeed,
+            
             // Use two data accumulators to avoid prepending and concating large
-            // arrays since that gets CPU intensive.
+            // arrays since that gets CPU intensive. We use two accumulators
+            // so we can ensure that all mobs are drawn on top of all halos.
             haloData = {
                 count:0,
                 position:[],
@@ -207,32 +211,9 @@ gv.Map = new JS.Class('Map', myt.View, {
                 renderType:[]
             };
         
-        function appendTo(data, x, y, rotation, size, color, alpha, renderType) {
-            // No need to render what can't be seen.
-            if (alpha === 0) return;
-            
-            data.color = data.color.concat(color);
-            
-            // Apply alpha after the fact to avoid modifying the provided color
-            if (alpha !== 1) {
-                var c = data.color,
-                    len = c.length;
-                c[len - 2] *= alpha;
-                c[len - 3] *= alpha;
-                c[len - 4] *= alpha;
-            }
-            
-            data.position.push(x, y);
-            data.rotation.push(rotation);
-            data.size.push(size);
-            data.renderType.push(renderType);
-            data.count++;
-        }
-        
         while (i) {
             mob = mobs[--i];
             type = mob.type;
-            rotation = mob.angle;
             
             mobR = mob.radius * scale;
             mobHaloR = Math.max(4, mobR * HALO_RADIUS_BY_TYPE[type]);
@@ -242,14 +223,16 @@ gv.Map = new JS.Class('Map', myt.View, {
             
             // Don't draw halos or mobs that do not intersect the map
             if (cicFunc(halfMapSize, halfMapSize, centerToCornerMapSize, mobCx, mobCy, mobHaloR)) {
+                rotation = mob.angle;
                 color = MOB_COLOR_BY_TYPE[type];
+                
                 if (type === 'ship') {
-                    appendTo(
+                    self._appendTo(
                         haloData, mobCx, mobCy, rotation, 2 * mobHaloR, color, 
                         Math.max(0, 1.0 - (mobHaloR / 1000)), 3
                     );
                 } else {
-                    appendTo(
+                    self._appendTo(
                         haloData, mobCx, mobCy, rotation, 2 * mobHaloR, color, 
                         Math.max(0, 0.75 - (mobHaloR / 1000)), 1
                     );
@@ -263,7 +246,7 @@ gv.Map = new JS.Class('Map', myt.View, {
                         if (mobR > 1000) {
                             canvasMobs.push([mobCx, mobCy, rotation, mobR, color]);
                         } else {
-                            appendTo(mobData, mobCx, mobCy, rotation, 2 * mobR, color, 1, type === 'ship' ? 2 : 0);
+                            self._appendTo(mobData, mobCx, mobCy, rotation, 2 * mobR, color, 1, type === 'ship' ? 2 : 0);
                         }
                     }
                 }
@@ -271,92 +254,122 @@ gv.Map = new JS.Class('Map', myt.View, {
         }
         
         layer.clear();
-        
         layer.setFont('11px "Lucida Console", Monaco, monospace');
+        layer.setLineWidth(1.5);
         
         // Draw canvas mobs if necessary
         canvasMobsLen = canvasMobs.length;
         while (canvasMobsLen) {
             mobInfo = canvasMobs[--canvasMobsLen];
-            
-            layer.beginPath();
             self._drawCircle(layer, mobInfo[0], mobInfo[1], mobInfo[3]);
-            layer.setFillStyle(self.convertColorToHex(mobInfo[4]));
+            layer.setFillStyle(self._convertColorToHex(mobInfo[4]));
             layer.fill();
         }
         
-        // Draw the highlight mob if necessary
-        if (highlightMob && highlightMob !== centerMob && highlightMob !== selectedMob) {
-            self._drawHighlight(layer, scale, offsetX, offsetY, highlightMob, 8, '#009900');
-        }
+        layer.setGlobalAlpha(0.5);
         
-        // Draw the selected mob if necessary
-        if (selectedMob && selectedMob !== centerMob) {
-            self._drawHighlight(layer, scale, offsetX, offsetY, selectedMob, 8, '#669966');
-        }
-        
-        // Draw the center mob highlight
-        if (centerMob) {
-            mobCx = offsetX + centerMob.x * scale;
-            mobCy = offsetY + centerMob.y * scale;
-            mobR = Math.max(centerMob.radius * scale, 60),
-            
-            // Forces
-            forces = centerMob.getForces();
-            forceCount = forces.length;
-            while (forceCount) {
-                forceObj = forces[--forceCount];
-                self._drawForce(
-                    layer, forceObj, mobCx, mobCy, scale, mobR + 4,
-                    forceObj.mob === centerMob ? '#990000' : '#006666'
-                );
-            }
-            
-            // Net Force
-            var dvx = centerMob.dvx,
-                dvy = centerMob.dvy;
-            forceObj = {
-                force:Math.sqrt(dvx * dvx + dvy * dvy), 
-                angle:Math.atan2(dvy, dvx), 
-                mob:centerMob
-            };
-            self._drawForce(layer, forceObj, mobCx, mobCy, scale, mobR + 4, '#009900');
-            
-            // Directional arrow
-            layer.beginPath();
-            layer.moveTo(mobCx, mobCy);
-            angle = centerMob.angle - 0.025;
-            layer.lineTo(mobCx + mobR * Math.cos(angle), mobCy + mobR * Math.sin(angle));
-            angle += 0.025;
-            layer.lineTo(mobCx + mobR * Math.cos(angle), mobCy + mobR * Math.sin(angle));
-            angle += 0.025;
-            layer.lineTo(mobCx + mobR * Math.cos(angle), mobCy + mobR * Math.sin(angle));
-            layer.setFillStyle('#00ff00');
-            layer.fill();
-            
-            // Thick inner ring
-            layer.beginPath();
-            layer.circle(mobCx, mobCy, mobR);
-            layer.setLineWidth(2.0);
+        // Draw the highlight mob ring if necessary
+        if (drawHighlight) {
+            self._drawCircle(layer, offsetX + highlightMob.x * scale, offsetY + highlightMob.y * scale, Math.max(highlightMob.radius * scale, 8));
             layer.setStrokeStyle('#00ff00');
             layer.stroke();
-            
-            // Thin outer ring
-            mobR += 60;
-            layer.beginPath();
-            layer.circle(mobCx, mobCy, mobR);
-            layer.setLineWidth(1.5);
-            layer.setStrokeStyle('#006600');
+        }
+        
+        // Draw the selected mob ring if necessary
+        if (drawSelected) {
+            self._drawCircle(layer, offsetX + selectedMob.x * scale, offsetY + selectedMob.y * scale, Math.max(selectedMob.radius * scale, 8));
+            layer.setStrokeStyle('#00ff00');
+            layer.stroke();
+        }
+        
+        //// Draw the center mob highlight /////////////////////////////////////
+        mobCx = offsetX + centerMob.x * scale;
+        mobCy = offsetY + centerMob.y * scale;
+        mobR = Math.max(centerMob.radius * scale, 60),
+        
+        // Force Arrows
+        forces = centerMob.getForces();
+        forceCount = forces.length;
+        while (forceCount) {
+            forceObj = forces[--forceCount];
+            self._drawForce(
+                layer, forceObj, mobCx, mobCy, scale, mobR + 4,
+                forceObj.mob === centerMob ? '#ff0000' : '#00ffff'
+            );
+        }
+        
+        // Net Force Arrow
+        dvx = centerMob.dvx;
+        dvy = centerMob.dvy;
+        forceObj = {
+            force:Math.sqrt(dvx * dvx + dvy * dvy), 
+            angle:Math.atan2(dvy, dvx), 
+            mob:centerMob
+        };
+        self._drawForce(layer, forceObj, mobCx, mobCy, scale, mobR + 4, '#00ff00');
+        
+        layer.setGlobalAlpha(1.0);
+        
+        // Directional Arrow
+        layer.beginPath();
+        layer.moveTo(mobCx, mobCy);
+        angle = centerMob.angle - 0.025;
+        layer.lineTo(mobCx + mobR * Math.cos(angle), mobCy + mobR * Math.sin(angle));
+        angle += 0.05;
+        layer.lineTo(mobCx + mobR * Math.cos(angle), mobCy + mobR * Math.sin(angle));
+        layer.setFillStyle('#00ff00');
+        layer.fill();
+        
+        // Thick inner ring
+        layer.beginPath();
+        layer.circle(mobCx, mobCy, mobR);
+        layer.setLineWidth(2.0);
+        layer.setStrokeStyle('#00ff00');
+        layer.stroke();
+        
+        // Thin outer ring
+        layer.setGlobalAlpha(0.5);
+        mobR += 60;
+        layer.beginPath();
+        layer.circle(mobCx, mobCy, mobR);
+        layer.setLineWidth(1.5);
+        layer.setStrokeStyle('#00ff00');
+        layer.stroke();
+        
+        // Potential Circular Orbit Ring
+        strongestForceMob = self._findStrongestForce(forces, centerMob);
+        if (strongestForceMob) {
+            distance = strongestForceMob.measureCenterDistance(centerMob);
+            var orbitCx = offsetX + strongestForceMob.x * scale,
+                orbitCy = offsetY + strongestForceMob.y * scale,
+                orbitR = distance * scale;
+            self._drawCircle(layer, orbitCx, orbitCy, orbitR);
+            layer.setStrokeStyle('#ffffff');
+            layer.setGlobalAlpha(0.33);
             layer.stroke();
             
-            // Lines from outer ring to other mobs
-            if (highlightMob && highlightMob !== centerMob) {
-                self._drawLineToMob(layer, highlightMob, centerMob, mobCx, mobCy, scale, mobR);
+            orbitSpeed = GV.getSpeedForCircularOrbit(centerMob, strongestForceMob, distance);
+            
+            layer.setGlobalAlpha(0.66);
+            layer.setFillStyle('#ffffff');
+            var intersection = GV.getIntersectionOfTwoCircles(orbitCx, orbitCy, orbitR, mobCx, mobCy, mobR);
+            if (intersection.length) {
+                intersection = intersection[0];
+            } else {
+                intersection = GV.getClosestPointOnACircleToAPoint(mobCx, mobCy, mobR, orbitCx, orbitCy);
             }
-            if (selectedMob && selectedMob !== centerMob) {
-                self._drawLineToMob(layer, selectedMob, centerMob, mobCx, mobCy, scale, mobR);
-            }
+            var label = strongestForceMob.label + ' Orbit - ' + (orbitSpeed).toFixed(2) + ' m/sec';
+            layer.fillText(
+                label, 
+                intersection.x + (intersection.x > mobCx ? 5 : -5 - layer.measureText(label).width), 
+                intersection.y + (intersection.y > mobCy ? -5 : 11)
+            );
         }
+        
+        // Lines from outer ring to other mobs
+        if (drawHighlight) self._drawLineToMob(layer, highlightMob, centerMob, mobCx, mobCy, scale, mobR);
+        if (drawSelected) self._drawLineToMob(layer, selectedMob, centerMob, mobCx, mobCy, scale, mobR);
+        
         
         // Combine Data Accumulators
         haloData.position = haloData.position.concat(mobData.position);
@@ -371,20 +384,52 @@ gv.Map = new JS.Class('Map', myt.View, {
     },
     
     /** @private */
+    _findStrongestForce: function(forces, skipMob) {
+        var i = forces.length, mob;
+        while (i) {
+            mob = forces[--i].mob;
+            if (mob !== skipMob) return mob;
+        }
+    },
+    
+    /** @private */
+    _convertColorToHex: function(v) {
+        return myt.Color.rgbToHex(v[0] * v[0] * 255, v[1] * v[1] * 255, v[2] * v[2] * 255, true);
+    },
+    
+    /** @private */
+    _appendTo: function(data, x, y, rotation, size, color, alpha, renderType) {
+        // No need to render what can't be seen.
+        if (alpha === 0) return;
+        
+        data.color = data.color.concat(color);
+        
+        // Apply alpha after the fact to avoid modifying the provided color
+        if (alpha !== 1) {
+            var c = data.color,
+                len = c.length;
+            c[len - 2] *= alpha;
+            c[len - 3] *= alpha;
+            c[len - 4] *= alpha;
+        }
+        
+        data.position.push(x, y);
+        data.rotation.push(rotation);
+        data.size.push(size);
+        data.renderType.push(renderType);
+        data.count++;
+    },
+    
+    /** @private */
     _drawForce: function(layer, forceObj, mobCx, mobCy, scale, startRadius, color) {
-        var angle = forceObj.angle,
-            force = forceObj.force,
-            endR = startRadius + 10 * force;
-        
         layer.beginPath();
-        
-        angle = angle - 0.05;
+        var angle = forceObj.angle - 0.05,
+            endR = startRadius + 10 * forceObj.force;
         layer.moveTo(mobCx + startRadius * Math.cos(angle), mobCy + startRadius * Math.sin(angle));
         angle += 0.05;
         layer.lineTo(mobCx + endR * Math.cos(angle), mobCy + endR * Math.sin(angle));
         angle += 0.05;
         layer.lineTo(mobCx + startRadius * Math.cos(angle), mobCy + startRadius * Math.sin(angle));
-        
         layer.setFillStyle(color);
         layer.fill();
     },
@@ -416,8 +461,8 @@ gv.Map = new JS.Class('Map', myt.View, {
             layer.beginPath();
             layer.moveTo(mobCx + startRadius * cosA, mobCy + startRadius * sinA);
             layer.lineTo(mobCx + endR * cosA, mobCy + endR * sinA);
-            layer.setLineWidth(1.5);
-            layer.setStrokeStyle('#006600');
+            layer.setStrokeStyle('#00ff00');
+            layer.setGlobalAlpha(0.5);
             layer.stroke();
         }
         
@@ -443,10 +488,11 @@ gv.Map = new JS.Class('Map', myt.View, {
         startX = mobCx + startRadius * cosA;
         startY = mobCy + startRadius * sinA;
         
+        layer.setGlobalAlpha(1.0);
+        
         layer.beginPath();
         layer.moveTo(startX, startY);
         layer.lineTo(startX + speed * cosVA, startY + speed * sinVA);
-        layer.setLineWidth(1.5);
         layer.setStrokeStyle(velocityColor);
         layer.stroke();
         
@@ -468,48 +514,38 @@ gv.Map = new JS.Class('Map', myt.View, {
     },
     
     /** @private */
-    _drawHighlight: function(layer, scale, offsetX, offsetY, mob, minRadius, color) {
-        layer.beginPath();
-        this._drawCircle(layer, offsetX + mob.x * scale, offsetY + mob.y * scale, Math.max(mob.radius * scale, minRadius));
-        layer.setLineWidth(1.5);
-        layer.setStrokeStyle(color);
-        layer.stroke();
-    },
-    
-    /** @private */
     _drawCircle: function(layer, x, y, r) {
+        layer.beginPath();
+        
         if (r > 100000) {
             var GV = gv,
                 halfMapSize = this._halfMapSize,
-                p3, a1, a2;
-            if (GV.circleContainsCircle(x, y, r, halfMapSize, halfMapSize, 2 * halfMapSize)) {
+                mapSize = 2 * halfMapSize,
+                pt, angle;
+            if (GV.circleContainsCircle(x, y, r, halfMapSize, halfMapSize, mapSize)) {
                 // Draw a rect when the circle contains the viewport
-                layer.rect(0, 0, 2*halfMapSize, 2*halfMapSize);
+                layer.rect(0, 0, mapSize, mapSize);
             } else {
                 // Draw large circles as a poly to prevent jitter
-                p3 = GV.getClosestPointOnACircleToAPoint(x, y, r, halfMapSize, halfMapSize);
+                pt = GV.getClosestPointOnACircleToAPoint(x, y, r, halfMapSize, halfMapSize);
                 
                 if (halfMapSize === x) {
-                    a1 = Math.PI / 2 * (y > halfMapSize ? 1 : -1);
+                    angle = GV.HALF_PI * (y > halfMapSize ? 1 : -1);
                 } else if (x > halfMapSize) {
-                    a1 = Math.atan((halfMapSize - y) / (halfMapSize - x)) + Math.PI;
+                    angle = Math.atan((halfMapSize - y) / (halfMapSize - x)) + Math.PI;
                 } else {
-                    a1 = Math.atan((halfMapSize - y) / (halfMapSize - x));
+                    angle = Math.atan((halfMapSize - y) / (halfMapSize - x));
                 }
-                a1 -= 0.05;
-                a2 = a1 + 0.1;
                 
                 layer.moveTo(x, y);
-                layer.lineTo(x + r * Math.cos(a1), y + r * Math.sin(a1));
-                layer.lineTo(p3.x, p3.y);
-                layer.lineTo(x + r * Math.cos(a2), y + r * Math.sin(a2));
+                angle -= 0.005;
+                layer.lineTo(x + r * Math.cos(angle), y + r * Math.sin(angle));
+                layer.lineTo(pt.x, pt.y);
+                angle += 0.01;
+                layer.lineTo(x + r * Math.cos(angle), y + r * Math.sin(angle));
             }
         } else {
             layer.circle(x, y, r);
         }
-    },
-    
-    convertColorToHex: function(v) {
-        return myt.Color.rgbToHex(v[0] * v[0] * 255, v[1] * v[1] * 255, v[2] * v[2] * 255, true);
     }
 });
