@@ -47,7 +47,7 @@ gv.Mob = new JS.Class('Mob', myt.Eventable, {
     
     setX: function(x) {this.x = x;},
     setY: function(y) {this.y = y;},
-    setAngle: function(a) {this.a = a;},
+    setAngle: function(a) {this.angle = a;},
     
     setVx: function(vx) {this.vx = vx;},
     setVy: function(vy) {this.vy = vy;},

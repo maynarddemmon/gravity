@@ -484,12 +484,12 @@ gv.App = new JS.Class('App', myt.View, {
         GV.giveMobCircularOrbit(ship, earth, 1.291e7, 0);
         mobs.push(ship);
         
-        var ship2 = new GV.Ship({mass:2.0e6, density:250, label:'Soyuz'});
-        GV.giveMobCircularOrbit(ship2, earth, 1.29105e7, 0);
+        var ship2 = new GV.Ship({mass:2.0e6, density:250, label:'Soyuz', angle:4});
+        GV.giveMobCircularOrbit(ship2, earth, 1.29105e7, 0.00001);
         mobs.push(ship2);
         
         var iss = new GV.Ship({mass:419.6e6, density:250, label:'iss'});
-        GV.giveMobCircularOrbit(iss, earth, 1.3072e7, 0);
+        GV.giveMobCircularOrbit(iss, earth, 1.3072e7, 0.01);
         mobs.push(iss);
         
         var ship3 = new GV.Ship({mass:1.0e6, density:250, label:'Lunar Orbiter'});

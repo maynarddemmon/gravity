@@ -40,6 +40,8 @@
         
         - Atmospheric drag
         
+        - Update highlight mob when useing mousewheel to zoom
+        
         - Preserve momentum when docking?
 */
 gv = (function() {
