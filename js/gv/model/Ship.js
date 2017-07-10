@@ -29,16 +29,14 @@ gv.Ship = new JS.Class('Ship', gv.Mob, {
     setPlayerShip: function(v) {if (v) gv.app.setPlayerShip(this);},
     isPlayerShip: function() {return gv.app.getPlayerShip() === this;},
     
-    rotateLeft: function() {
-        this._applyRotationalThrust(false);
-    },
-    
-    rotateRight: function() {
-        this._applyRotationalThrust(true);
-    },
+    rotateLeft: function() {this._applyRotationalThrust(false);},
+    rotateRight: function() {this._applyRotationalThrust(true);},
     
     /** @private */
     _applyRotationalThrust: function(clockwise) {
+        // No thrust changes when simulation isn't running.
+        if (!gv.spacetime.isRunning()) return;
+        
         // Scale by simulatedSecondsPerTimeSlice
         var timeScaling = 1 / gv.app.simulatedSecondsPerTimeSlice,
             va = this.va + (clockwise ? 0.00125 : -0.00125) * timeScaling;
@@ -49,30 +47,22 @@ gv.Ship = new JS.Class('Ship', gv.Mob, {
         this.setVa(va);
     },
     
-    increaseThrust: function() {
-        var thrust = this.thrust;
-        if (thrust >= 0) {
-            // Increase Main Thrust
-            thrust = Math.max(0, thrust + 0.5);
-        } else {
-            // Decrease Breaking
-            thrust = Math.min(0, thrust + 0.25);
-        }
-        
-        // Snap to zero when close so it's easy for a user to stop thrust
-        if (Math.abs(thrust) < 0.25) thrust = 0;
-        
-        this.setThrust(thrust);
-    },
+    increaseThrust: function() {this._applyThrust(true);},
+    decreaseThrust: function() {this._applyThrust(false);},
     
-    decreaseThrust: function() {
-        var thrust = this.thrust;
-        if (thrust > 0) {
-            // Decrease Main Thrust
-            thrust = Math.max(0, thrust - 0.5);
+    /** @private */
+    _applyThrust: function(increase) {
+        // No thrust changes when simulation isn't running.
+        if (!gv.spacetime.isRunning()) return;
+        
+        var thrust = this.thrust,
+            factor = increase ? 1 : -1;
+        if (increase ? thrust >= 0 : thrust > 0) {
+            // Main Thrust
+            thrust = Math.max(0, thrust + 0.5 * factor);
         } else {
-            // Increase Breaking
-            thrust = Math.min(0, thrust - 0.25);
+            // Breaking
+            thrust = Math.min(0, thrust + 0.25 * factor);
         }
         
         // Snap to zero when close so it's easy for a user to stop thrust

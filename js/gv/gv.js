@@ -24,25 +24,29 @@
 /*
     TODO:
         - Handle destruction of the player ship (respawn?)
+        
         - Formal docking state (no rotation while docked)
+        - Formal landed state (no rotation while landed)
+        - Landing via specific angles with a higher collision threshold (landing gear on back)
+        - Docking only via specific angles (front to front)
+        
         - Collisions with deflection when below a destruction threshold
+        
+        - Side maneuvering thrusters
+        
         - Draw scale markers on the map
         - Some kind of rotational thrust indicator
-        - Side maneuvering thrusters
-        - Docking only via specific angles (front to front)
-        - Landing via specific angles with a higher collision threshold (landing gear on back)
         - Elapsed time indicator.
         
         - Multiple selected mobs.
         - Simplify highlight mob HUD.
-        
+        - Update highlight mob when useing mousewheel to zoom
         - Key repeat support for thrust adjustments
         
         - Atmospheric drag
         
-        - Update highlight mob when useing mousewheel to zoom
-        
         - Preserve momentum when docking?
+        - Limit time scale based on distance to closest mob?
 */
 gv = (function() {
     var timeSlicesPerSecond = 60,
@@ -62,7 +66,7 @@ gv = (function() {
         FORCE_DISPLAY_THRESHOLD:0.0001,
         
         // Makes all mobs larger
-        DENSITY_SCALING:6,
+        DENSITY_SCALING:1,
         
         // Used in volume of a sphere calculations.
         THREE_OVER_FOUR_PI:3 / (4 * Math.PI),

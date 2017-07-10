@@ -485,7 +485,7 @@ gv.App = new JS.Class('App', myt.View, {
         mobs.push(ship);
         
         var ship2 = new GV.Ship({mass:2.0e6, density:250, label:'Soyuz', angle:4});
-        GV.giveMobCircularOrbit(ship2, earth, 1.29105e7, 0.00001);
+        GV.giveMobCircularOrbit(ship2, earth, 1.29105e7, 0.000001);
         mobs.push(ship2);
         
         var iss = new GV.Ship({mass:419.6e6, density:250, label:'iss'});

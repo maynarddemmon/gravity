@@ -313,9 +313,9 @@ gv.Map = new JS.Class('Map', myt.View, {
         // Directional Arrow
         layer.beginPath();
         layer.moveTo(mobCx, mobCy);
-        angle = centerMob.angle - 0.025;
+        angle = centerMob.angle - 0.02;
         layer.lineTo(mobCx + mobR * Math.cos(angle), mobCy + mobR * Math.sin(angle));
-        angle += 0.05;
+        angle += 0.04;
         layer.lineTo(mobCx + mobR * Math.cos(angle), mobCy + mobR * Math.sin(angle));
         layer.setFillStyle('#00ff00');
         layer.fill();
@@ -323,20 +323,22 @@ gv.Map = new JS.Class('Map', myt.View, {
         // Thick inner ring
         layer.beginPath();
         layer.circle(mobCx, mobCy, mobR);
-        layer.setLineWidth(2.0);
+        //layer.setLineWidth(2.0);
         layer.setStrokeStyle('#00ff00');
         layer.stroke();
         
         layer.fillText(centerMob.label, mobCx - layer.measureText(centerMob.label).width / 2, mobCy - mobR - 6);
         
         // Thin outer ring
-        layer.setGlobalAlpha(0.5);
+        layer.setGlobalAlpha(0.25);
         mobR += 60;
         layer.beginPath();
         layer.circle(mobCx, mobCy, mobR);
-        layer.setLineWidth(1.5);
-        layer.setStrokeStyle('#00ff00');
+        //layer.setLineWidth(1.5);
+        layer.setStrokeStyle('#ffffff');
         layer.stroke();
+        
+        layer.setGlobalAlpha(0.5);
         
         // Potential Circular Orbit Ring
         strongestForceMob = self._findStrongestForce(forces, centerMob);
@@ -463,8 +465,8 @@ gv.Map = new JS.Class('Map', myt.View, {
             layer.beginPath();
             layer.moveTo(mobCx + startRadius * cosA, mobCy + startRadius * sinA);
             layer.lineTo(mobCx + endR * cosA, mobCy + endR * sinA);
-            layer.setStrokeStyle('#00ff00');
-            layer.setGlobalAlpha(0.5);
+            layer.setStrokeStyle('#ffffff');
+            layer.setGlobalAlpha(0.25);
             layer.stroke();
         }
         
