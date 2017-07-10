@@ -216,7 +216,7 @@ gv.Map = new JS.Class('Map', myt.View, {
             type = mob.type;
             
             mobR = mob.radius * scale;
-            mobHaloR = Math.max(4, mobR * HALO_RADIUS_BY_TYPE[type]);
+            mobHaloR = Math.max(6, mobR * HALO_RADIUS_BY_TYPE[type]);
             
             mobCx = offsetX + mob.x * scale;
             mobCy = offsetY + mob.y * scale;
@@ -326,6 +326,8 @@ gv.Map = new JS.Class('Map', myt.View, {
         layer.setLineWidth(2.0);
         layer.setStrokeStyle('#00ff00');
         layer.stroke();
+        
+        layer.fillText(centerMob.label, mobCx - layer.measureText(centerMob.label).width / 2, mobCy - mobR - 6);
         
         // Thin outer ring
         layer.setGlobalAlpha(0.5);

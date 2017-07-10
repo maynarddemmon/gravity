@@ -21,6 +21,27 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
  * THE SOFTWARE.
  */
+/*
+    TODO:
+        - Handle destruction of the player ship (respawn?)
+        - Formal docking state (no rotation while docked)
+        - Collisions with deflection when below a destruction threshold
+        - Draw scale markers on the map
+        - Some kind of rotational thrust indicator
+        - Side maneuvering thrusters
+        - Docking only via specific angles (front to front)
+        - Landing via specific angles with a higher collision threshold (landing gear on back)
+        - Elapsed time indicator.
+        
+        - Multiple selected mobs.
+        - Simplify highlight mob HUD.
+        
+        - Key repeat support for thrust adjustments
+        
+        - Atmospheric drag
+        
+        - Preserve momentum when docking?
+*/
 gv = (function() {
     var timeSlicesPerSecond = 60,
         millisPerCalc = Math.ceil(1000 / timeSlicesPerSecond);
@@ -51,14 +72,17 @@ gv = (function() {
         // The gravitational constant
         G:6.674e-11,
         
+        // 1 earth g force in newtons
+        G_FORCE:9.80665,
+        
         // 1 astronomical unit in meters
         AU:149597870700,
         
         HALO_RADIUS_BY_TYPE: {
-            star:200,
-            planet:1000,
-            moon:1000,
-            asteroid:5000,
+            star:150,
+            planet:50,
+            moon:75,
+            asteroid:500,
             ship:10
         },
         

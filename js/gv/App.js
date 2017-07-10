@@ -168,7 +168,12 @@ gv.App = new JS.Class('App', myt.View, {
     
     updateShipThrustLabel: function() {
         var ship = this.getPlayerShip();
-        this._shipThrustLabel.setText('Ship Thrust:' + (ship ? (ship.thrust).toFixed(2) + ' vel/sec' : '-'));
+        this._shipThrustLabel.setText(
+            'Ship Thrust:' + 
+            (ship ? (ship.thrust / gv.G_FORCE).toFixed(2) + ' Gs' : '-') +
+            ' | ' +
+            (ship ? (ship.thrust).toFixed(2) + ' vel/sec' : '-')
+        );
     },
     
     doActivationKeyDown: function(key, isRepeat) {
@@ -274,7 +279,7 @@ gv.App = new JS.Class('App', myt.View, {
             GV.giveMobCircularOrbit(deimos, mars, 2*23.459e6, PI);
             mobs.push(deimos);
         
-        var asteroid, i, count = 150,
+        var asteroid, i, count = 100,
             lowerRange = 329.115316e9,
             upperRange = 478.713186e9,
             averageMass = 3.2e21 / count;
@@ -446,12 +451,23 @@ gv.App = new JS.Class('App', myt.View, {
             mobs.push(styx);
         
         // Kuiper Belt
-        count = 100;
+        count = 75;
         lowerRange = 39.5 * GV.AU;
         upperRange = 48 * GV.AU;
         averageMass = 3.2e19 / count;
         for (i = 0; count > i; i++) {
             asteroid = new GV.Mob({mass:M.getRandomArbitrary(averageMass/10, averageMass*10), density:1000, type:'asteroid', label:'Kuiper Belt Object ' + i});
+            GV.giveMobCircularOrbit(asteroid, sun, M.getRandomArbitrary(lowerRange, upperRange), M.getRandomArbitrary(0, 2*PI));
+            mobs.push(asteroid);
+        }
+        
+        // Oort Cloud
+        count = 50;
+        lowerRange = 5000 * GV.AU;
+        upperRange = 100000 * GV.AU;
+        averageMass = 3.2e19 / count;
+        for (i = 0; count > i; i++) {
+            asteroid = new GV.Mob({mass:M.getRandomArbitrary(averageMass/10, averageMass*10), density:1000, type:'asteroid', label:'Oort Cloud Object ' + i});
             GV.giveMobCircularOrbit(asteroid, sun, M.getRandomArbitrary(lowerRange, upperRange), M.getRandomArbitrary(0, 2*PI));
             mobs.push(asteroid);
         }
