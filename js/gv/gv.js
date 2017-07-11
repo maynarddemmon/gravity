@@ -25,18 +25,17 @@
     TODO:
         - Handle destruction of the player ship (respawn?)
         
-        - Formal docking state (no rotation while docked)
-        - Formal landed state (no rotation while landed)
+        - Formal docking state (no rotation while docked, no docking while rotating)
+        - Formal landed state (no rotation while landed, no landing while rotating)
         - Landing via specific angles with a higher collision threshold (landing gear on back)
         - Docking only via specific angles (front to front)
         
         - Collisions with deflection when below a destruction threshold
         
-        - Side maneuvering thrusters
-        
         - Draw scale markers on the map
         - Some kind of rotational thrust indicator
         - Elapsed time indicator.
+        - Color relative velocity when it's near orbit velocity
         
         - Multiple selected mobs.
         - Simplify highlight mob HUD.
@@ -44,6 +43,7 @@
         - Key repeat support for thrust adjustments
         
         - Atmospheric drag
+        - Show rotation on asteroid, moons, planets, etc.
         
         - Preserve momentum when docking?
         - Limit time scale based on distance to closest mob?

@@ -21,11 +21,11 @@ gv.App = new JS.Class('App', myt.View, {
             g = myt.global,
             GV = gv;
         
-        attrs.bgColor = '#003300';
         attrs.minWidth = attrs.minHeight = 600;
+        
         attrs.focusable = true;
         attrs.focusEmbellishment = false;
-        attrs.activationKeys = [13,32,37,38,39,40,187,189];
+        attrs.activationKeys = [13,32,37,38,39,40,88,90,187,189];
         
         self.callSuper(parent, attrs);
         GV.app = self;
@@ -43,7 +43,7 @@ gv.App = new JS.Class('App', myt.View, {
         });
         
         // Controls
-        var rightPanel = this._rightPanel = new M.View(self);
+        var rightPanel = this._rightPanel = new M.View(self, {bgColor:'#003300'});
         
         self.playBtn = new GV.CircleButton(rightPanel, {x:5, y:5, text:GV.FA_PLAY, fontSize:'11px'}, [{
             doActivated: function() {
@@ -57,7 +57,7 @@ gv.App = new JS.Class('App', myt.View, {
             }
         }]);
         
-        self.timescaleSlider = new GV.Slider(rightPanel, {x:51, y:5, width:199, value:0, minValue:0, maxValue:25}, [{
+        self.timescaleSlider = new GV.Slider(rightPanel, {x:51, y:5, width:194, value:0, minValue:0, maxValue:25}, [{
             setValue: function(v) {
                 this.callSuper(v);
                 
@@ -97,6 +97,7 @@ gv.App = new JS.Class('App', myt.View, {
         
         self._scaleLabel = new M.Text(rightPanel, {x:5, y:28, fontSize:'10px', textColor:'#00ff00'});
         self._shipThrustLabel = new M.Text(rightPanel, {x:5, y:40, fontSize:'10px', textColor:'#00ff00'});
+        self._shipStrafeLabel = new M.Text(rightPanel, {x:5, y:52, fontSize:'10px', textColor:'#00ff00'});
         
         self._updateSize();
         
@@ -107,6 +108,7 @@ gv.App = new JS.Class('App', myt.View, {
         self._uiReady = true;
         self.updateScaleLabel();
         self.updateShipThrustLabel();
+        self.updateShipStrafeLabel();
         
         spacetime.start();
     },
@@ -121,6 +123,18 @@ gv.App = new JS.Class('App', myt.View, {
     setHeight:function(v, supressEvent) {
         this.callSuper(v, supressEvent);
         if (this.inited) this._updateSize();
+    },
+    
+    /** @private */
+    _updateSize: function() {
+        var self = this,
+            rightPanel = self._rightPanel,
+            size = Math.min(self.width, self.height);
+        self.map.setWidth(size);
+        
+        rightPanel.setX(size);
+        rightPanel.setWidth(Math.max(250, self.width - size));
+        rightPanel.setHeight(size);
     },
     
     setHighlightMob: function(v) {
@@ -176,6 +190,16 @@ gv.App = new JS.Class('App', myt.View, {
         );
     },
     
+    updateShipStrafeLabel: function() {
+        var ship = this.getPlayerShip();
+        this._shipStrafeLabel.setText(
+            'Ship Lateral Thrust:' + 
+            (ship ? (ship.strafe / gv.G_FORCE).toFixed(2) + ' Gs' : '-') +
+            ' | ' +
+            (ship ? (ship.strafe).toFixed(2) + ' vel/sec' : '-')
+        );
+    },
+    
     doActivationKeyDown: function(key, isRepeat) {
         var spacetime = gv.spacetime,
             map = gv.map,
@@ -206,6 +230,12 @@ gv.App = new JS.Class('App', myt.View, {
                 case 40: // Down
                     ship.decreaseThrust();
                     break;
+                case 88: // X
+                    ship.strafeRight();
+                    break;
+                case 90: // Z
+                    ship.strafeLeft();
+                    break;
                 case 187: // Equals Key (+)
                     // Slow down spacetime
                     this.timescaleSlider.setValue(this.timescaleSlider.getValue() + 1);
@@ -230,14 +260,6 @@ gv.App = new JS.Class('App', myt.View, {
             to:gv.MILLIS_PER_CALC / 1000 * v,
             duration:500
         });
-    },
-    
-    /** @private */
-    _updateSize: function() {
-        var self = this,
-            size = Math.min(self.width, self.height);
-        self.map.setWidth(size);
-        self._rightPanel.setX(size);
     },
     
     /** @private */
@@ -485,7 +507,7 @@ gv.App = new JS.Class('App', myt.View, {
         mobs.push(ship);
         
         var ship2 = new GV.Ship({mass:2.0e6, density:250, label:'Soyuz', angle:4});
-        GV.giveMobCircularOrbit(ship2, earth, 1.29105e7, 0.000001);
+        GV.giveMobCircularOrbit(ship2, earth, 1.291005e7, 0.000001);
         mobs.push(ship2);
         
         var iss = new GV.Ship({mass:419.6e6, density:250, label:'iss'});

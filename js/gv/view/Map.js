@@ -170,8 +170,8 @@ gv.Map = new JS.Class('Map', myt.View, {
             highlightMob = app.highlightMob,
             selectedMob = app.getSelectedMob(),
             
-            drawHighlight = highlightMob && highlightMob !== centerMob,
-            drawSelected = selectedMob && selectedMob !== centerMob && selectedMob !== highlightMob,
+            drawSelected = selectedMob && selectedMob !== centerMob,
+            drawHighlight = highlightMob && highlightMob !== centerMob && highlightMob !== selectedMob,
             
             scale = self._distanceScale,
             offsetX = halfMapSize - (centerMob ? centerMob.x : 0) * scale,
@@ -308,9 +308,8 @@ gv.Map = new JS.Class('Map', myt.View, {
         };
         self._drawForce(layer, forceObj, mobCx, mobCy, scale, mobR + 4, '#00ff00');
         
-        layer.setGlobalAlpha(1.0);
-        
         // Directional Arrow
+        layer.setGlobalAlpha(1.0);
         layer.beginPath();
         layer.moveTo(mobCx, mobCy);
         angle = centerMob.angle - 0.02;
@@ -320,27 +319,24 @@ gv.Map = new JS.Class('Map', myt.View, {
         layer.setFillStyle('#00ff00');
         layer.fill();
         
-        // Thick inner ring
+        // Inner ring and label
         layer.beginPath();
         layer.circle(mobCx, mobCy, mobR);
-        //layer.setLineWidth(2.0);
         layer.setStrokeStyle('#00ff00');
         layer.stroke();
-        
         layer.fillText(centerMob.label, mobCx - layer.measureText(centerMob.label).width / 2, mobCy - mobR - 6);
         
-        // Thin outer ring
+        // Outer ring
         layer.setGlobalAlpha(0.25);
         mobR += 60;
+        
         layer.beginPath();
         layer.circle(mobCx, mobCy, mobR);
-        //layer.setLineWidth(1.5);
         layer.setStrokeStyle('#ffffff');
         layer.stroke();
         
-        layer.setGlobalAlpha(0.5);
-        
         // Potential Circular Orbit Ring
+        layer.setGlobalAlpha(0.5);
         strongestForceMob = self._findStrongestForce(forces, centerMob);
         if (strongestForceMob) {
             distance = strongestForceMob.measureCenterDistance(centerMob);
@@ -362,7 +358,7 @@ gv.Map = new JS.Class('Map', myt.View, {
             } else {
                 intersection = GV.getClosestPointOnACircleToAPoint(mobCx, mobCy, mobR, orbitCx, orbitCy);
             }
-            var label = strongestForceMob.label + ' Orbit - ' + (orbitSpeed).toFixed(2) + ' m/sec';
+            var label = strongestForceMob.label + ' Orbit - tangential ' + (orbitSpeed).toFixed(2) + ' m/sec';
             layer.fillText(
                 label, 
                 intersection.x + (intersection.x > mobCx ? 5 : -5 - layer.measureText(label).width), 
@@ -371,8 +367,8 @@ gv.Map = new JS.Class('Map', myt.View, {
         }
         
         // Lines from outer ring to other mobs
-        if (drawHighlight) self._drawLineToMob(layer, highlightMob, centerMob, mobCx, mobCy, scale, mobR);
-        if (drawSelected) self._drawLineToMob(layer, selectedMob, centerMob, mobCx, mobCy, scale, mobR);
+        if (drawHighlight) self._drawLineToMob(layer, highlightMob, centerMob, mobCx, mobCy, scale, mobR, true);
+        if (drawSelected) self._drawLineToMob(layer, selectedMob, centerMob, mobCx, mobCy, scale, mobR, false);
         
         
         // Combine Data Accumulators
@@ -439,7 +435,7 @@ gv.Map = new JS.Class('Map', myt.View, {
     },
     
     /** @private */
-    _drawLineToMob: function(layer, mob, centerMob, mobCx, mobCy, scale, startRadius) {
+    _drawLineToMob: function(layer, mob, centerMob, mobCx, mobCy, scale, startRadius, minimalText) {
         var GV = gv,
             targetMobR = Math.max(mob.radius * scale, 8),
             distance = mob.measureDistance(centerMob),
@@ -502,19 +498,21 @@ gv.Map = new JS.Class('Map', myt.View, {
         
         // Draw Label
         layer.setFillStyle('#00ff00');
-        tYAdj = (angle > 0 && angle < Math.PI) ? 12 : -33;
+        tYAdj = (angle > 0 && angle < Math.PI) ? 12 : (minimalText ? -5 : -33);
         tXadj = (angle > GV.HALF_PI || angle < -GV.HALF_PI) ? -layer.measureText(label).width - 5 : 5;
         layer.fillText(label, mobCx + startRadius * cosA + tXadj, mobCy + startRadius * sinA + tYAdj);
         
-        // Draw relative velocity labels
-        layer.setFillStyle(velocityColor);
-        tYAdj = (angle > 0 && angle < Math.PI) ? 26 : -19;
-        tXadj = (angle > GV.HALF_PI || angle < -GV.HALF_PI) ? -layer.measureText(normalVelLabel).width - 5 : 5;
-        layer.fillText(normalVelLabel, mobCx + startRadius * cosA + tXadj, mobCy + startRadius * sinA + tYAdj);
-        
-        tYAdj = (angle > 0 && angle < Math.PI) ? 40 : -5;
-        tXadj = (angle > GV.HALF_PI || angle < -GV.HALF_PI) ? -layer.measureText(tangentialVelLabel).width - 5 : 5;
-        layer.fillText(tangentialVelLabel, mobCx + startRadius * cosA + tXadj, mobCy + startRadius * sinA + tYAdj);
+        if (!minimalText) {
+            // Draw relative velocity labels
+            layer.setFillStyle(velocityColor);
+            tYAdj = (angle > 0 && angle < Math.PI) ? 26 : -19;
+            tXadj = (angle > GV.HALF_PI || angle < -GV.HALF_PI) ? -layer.measureText(normalVelLabel).width - 5 : 5;
+            layer.fillText(normalVelLabel, mobCx + startRadius * cosA + tXadj, mobCy + startRadius * sinA + tYAdj);
+            
+            tYAdj = (angle > 0 && angle < Math.PI) ? 40 : -5;
+            tXadj = (angle > GV.HALF_PI || angle < -GV.HALF_PI) ? -layer.measureText(tangentialVelLabel).width - 5 : 5;
+            layer.fillText(tangentialVelLabel, mobCx + startRadius * cosA + tXadj, mobCy + startRadius * sinA + tYAdj);
+        }
     },
     
     /** @private */

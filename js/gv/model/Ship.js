@@ -9,7 +9,7 @@
 gv.Ship = new JS.Class('Ship', gv.Mob, {
     // Life Cycle //////////////////////////////////////////////////////////////
     init: function(attrs) {
-        this.rotationLevel = this.thrust = 0;
+        this.rotationLevel = this.thrust = this.strafe = 0;
         attrs.type = 'ship';
         
         this.callSuper(attrs);
@@ -20,8 +20,12 @@ gv.Ship = new JS.Class('Ship', gv.Mob, {
     setFuel: function(v) {this.fuel = v;},
     setThrust: function(v) {
         this.thrust = v;
-        
         gv.app.updateShipThrustLabel();
+    },
+    
+    setStrafe: function(v) {
+        this.strafe = v;
+        gv.app.updateShipStrafeLabel();
     },
     
     
@@ -34,7 +38,7 @@ gv.Ship = new JS.Class('Ship', gv.Mob, {
     
     /** @private */
     _applyRotationalThrust: function(clockwise) {
-        // No thrust changes when simulation isn't running.
+        // No changes when simulation isn't running.
         if (!gv.spacetime.isRunning()) return;
         
         // Scale by simulatedSecondsPerTimeSlice
@@ -52,7 +56,7 @@ gv.Ship = new JS.Class('Ship', gv.Mob, {
     
     /** @private */
     _applyThrust: function(increase) {
-        // No thrust changes when simulation isn't running.
+        // No changes when simulation isn't running.
         if (!gv.spacetime.isRunning()) return;
         
         var thrust = this.thrust,
@@ -71,24 +75,63 @@ gv.Ship = new JS.Class('Ship', gv.Mob, {
         this.setThrust(thrust);
     },
     
+    strafeLeft: function() {this._applyStrafe(false);},
+    strafeRight: function() {this._applyStrafe(true);},
+    
+    /** @private */
+    _applyStrafe: function(right) {
+        // No changes when simulation isn't running.
+        if (!gv.spacetime.isRunning()) return;
+        
+        var strafe = this.strafe + 0.25 * (right ? 1 : -1);
+        
+        // Snap to zero when close so it's easy for a user to stop strafe
+        if (Math.abs(strafe) < 0.25) strafe = 0;
+        
+        this.setStrafe(strafe);
+    },
+    
     /** @overrides */
     applyDeltas: function(dt) {
         var self = this,
             angle = self.angle,
-            thrust = self.thrust;
+            thrust = self.thrust,
+            strafe = self.strafe,
+            isMapCenter = self.isMapCenter();
         
-        // Apply thrust for 1 second
-        self.dvx += Math.cos(angle) * thrust;
-        self.dvy += Math.sin(angle) * thrust;
+        if (thrust !== 0) {
+            // Apply thrust for 1 second
+            self.dvx += Math.cos(angle) * thrust;
+            self.dvy += Math.sin(angle) * thrust;
+            
+            if (isMapCenter) {
+                var thrustMagnitude = Math.abs(thrust);
+                if (thrustMagnitude > gv.FORCE_DISPLAY_THRESHOLD) {
+                    self._forces.push({
+                        force:thrustMagnitude, 
+                        angle:angle + (thrust > 0 ? 0 : -Math.PI), 
+                        mob:self
+                    });
+                }
+            }
+        }
         
-        if (self.isMapCenter()) {
-            var thrustMagnitude = Math.abs(thrust);
-            if (thrustMagnitude > gv.FORCE_DISPLAY_THRESHOLD) {
-                self._forces.push({
-                    force:thrustMagnitude, 
-                    angle:angle + (thrust > 0 ? 0 : -Math.PI), 
-                    mob:self
-                });
+        if (strafe !== 0) {
+            // Apply strafe for 1 second
+            angle += gv.HALF_PI;
+            
+            self.dvx += Math.cos(angle) * strafe;
+            self.dvy += Math.sin(angle) * strafe;
+            
+            if (isMapCenter) {
+                var strafeMagnitude = Math.abs(strafe);
+                if (strafeMagnitude > gv.FORCE_DISPLAY_THRESHOLD) {
+                    self._forces.push({
+                        force:strafeMagnitude, 
+                        angle:angle + (strafe > 0 ? 0 : -Math.PI), 
+                        mob:self
+                    });
+                }
             }
         }
         
