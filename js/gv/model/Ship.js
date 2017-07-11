@@ -10,6 +10,8 @@ gv.Ship = new JS.Class('Ship', gv.Mob, {
     // Life Cycle //////////////////////////////////////////////////////////////
     init: function(attrs) {
         this.rotationLevel = this.thrust = this.strafe = 0;
+        this._dockedWith = {};
+        
         attrs.type = 'ship';
         
         this.callSuper(attrs);
@@ -18,18 +20,56 @@ gv.Ship = new JS.Class('Ship', gv.Mob, {
     
     // Accessors ///////////////////////////////////////////////////////////////
     setFuel: function(v) {this.fuel = v;},
+    
     setThrust: function(v) {
         this.thrust = v;
-        gv.app.updateShipThrustLabel();
+        if (this.isPlayerShip()) gv.app.updateShipThrustLabel();
     },
     
     setStrafe: function(v) {
         this.strafe = v;
-        gv.app.updateShipStrafeLabel();
+        if (this.isPlayerShip()) gv.app.updateShipStrafeLabel();
     },
     
     
     // Methods /////////////////////////////////////////////////////////////////
+    canDockWith: function(ship) {
+        if (this.thrust !== 0) return false;
+        if (this.strafe !== 0) return false;
+        if (this.va !== 0) return false;
+        return true;
+    },
+    
+    dockWith: function(ship, makeChild) {
+        if (this.canDockWith(ship)) {
+            this._dockedWith[ship._id] = ship;
+            if (makeChild) {
+                this.setParentMob(ship);
+                this.setThrust(0);
+                this.setStrafe(0);
+                ship.dockWith(this, false);
+                if (this.isPlayerShip()) gv.app.updateShipDockStatus();
+            }
+        }
+    },
+    
+    undockFromAll: function() {
+        for (var key in this._dockedWith) this.undockFrom(this._dockedWith[key]);
+    },
+    
+    undockFrom: function(ship) {
+        delete this._dockedWith[ship._id];
+        if (this.isChildMobOf(ship)) {
+            this.setParentMob();
+            ship.undockFrom(this);
+            if (this.isPlayerShip()) gv.app.updateShipDockStatus();
+        }
+    },
+    
+    isDocked: function() {
+        return Object.keys(this._dockedWith).length > 0;
+    },
+    
     setPlayerShip: function(v) {if (v) gv.app.setPlayerShip(this);},
     isPlayerShip: function() {return gv.app.getPlayerShip() === this;},
     
@@ -40,6 +80,9 @@ gv.Ship = new JS.Class('Ship', gv.Mob, {
     _applyRotationalThrust: function(clockwise) {
         // No changes when simulation isn't running.
         if (!gv.spacetime.isRunning()) return;
+        
+        // No changes when docked
+        if (this.isDocked()) return;
         
         // Scale by simulatedSecondsPerTimeSlice
         var timeScaling = 1 / gv.app.simulatedSecondsPerTimeSlice,
@@ -58,6 +101,9 @@ gv.Ship = new JS.Class('Ship', gv.Mob, {
     _applyThrust: function(increase) {
         // No changes when simulation isn't running.
         if (!gv.spacetime.isRunning()) return;
+        
+        // No changes when docked
+        if (this.isDocked()) return;
         
         var thrust = this.thrust,
             factor = increase ? 1 : -1;
@@ -82,6 +128,9 @@ gv.Ship = new JS.Class('Ship', gv.Mob, {
     _applyStrafe: function(right) {
         // No changes when simulation isn't running.
         if (!gv.spacetime.isRunning()) return;
+        
+        // No changes when docked
+        if (this.isDocked()) return;
         
         var strafe = this.strafe + 0.25 * (right ? 1 : -1);
         

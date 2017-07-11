@@ -13,6 +13,7 @@ gv.Spacetime = new JS.Class('Spacetime', myt.Eventable, {
         this._reactOnlyMobs = [];
         this._allMobs = [];
         this._mobsById = {};
+        this._childMobs = [];
         
         this._collisionCheckCount = 0;
         
@@ -83,6 +84,7 @@ gv.Spacetime = new JS.Class('Spacetime', myt.Eventable, {
     removeMob: function(mobToRemove) {
         if (mobToRemove) {
             if (this.hasMob(mobToRemove)) {
+                // Remove from _reactOnlyMobs or regular _mobs
                 var mobs = mobToRemove.mass < gv.REACT_ONLY_THRESHOLD ? this._reactOnlyMobs : this._mobs,
                     i = mobs.length;
                 while (i) {
@@ -91,6 +93,9 @@ gv.Spacetime = new JS.Class('Spacetime', myt.Eventable, {
                         break;
                     }
                 }
+                
+                // Remove from _childMobs if necessary
+                if (mobToRemove.isChildMob()) this.removeChildMob(mobToRemove);
                 
                 // Remove from _allMobs as well
                 mobs = this._allMobs;
@@ -102,8 +107,25 @@ gv.Spacetime = new JS.Class('Spacetime', myt.Eventable, {
                     }
                 }
                 
+                // Also remove from _mobsById
                 delete this._mobsById[mobToRemove.getId()];
+                
                 return mobToRemove;
+            }
+        }
+    },
+    
+    addChildMob: function(mob) {
+        this._childMobs.push(mob);
+    },
+    
+    removeChildMob: function(mob) {
+        var childMobs = this._childMobs, i = childMobs.length, childMob;
+        while (i) {
+            childMob = childMobs[--i];
+            if (childMob === mob) {
+                childMobs.splice(i, 1);
+                return;
             }
         }
     },
@@ -137,6 +159,7 @@ gv.Spacetime = new JS.Class('Spacetime', myt.Eventable, {
     _loop: function() {
         var self = this,
             i, j, mobA, mobB, newMob, r1, collisionDistance, allMobs, allMobsLen, mobs,
+            childMobs,
             dt = gv.app.simulatedSecondsPerTimeSlice;
         
         // Resolve collisions. Don't check collisions every time since this 
@@ -152,6 +175,10 @@ gv.Spacetime = new JS.Class('Spacetime', myt.Eventable, {
                 r1 = mobA.radius;
                 for (j = i; allMobsLen > j; j++) {
                     mobB = allMobs[j];
+                    
+                    // No collisions between parent and child mobs
+                    if (mobB.isChildMobOf(mobA) || mobA.isChildMobOf(mobB)) continue;
+                    
                     collisionDistance = r1 + mobB.radius;
                     if (mobA.measureCenterDistanceSquared(mobB) < collisionDistance * collisionDistance) {
                         newMob = mobA.resolveCollision(mobB);
@@ -167,9 +194,8 @@ gv.Spacetime = new JS.Class('Spacetime', myt.Eventable, {
         
         // Reset forces
         allMobs = self.getAllMobs();
-        allMobsLen = allMobs.length;
-        j = allMobsLen;
-        while (j) allMobs[--j].resetForces();
+        i = allMobsLen = allMobs.length;
+        while (i) allMobs[--i].resetForces();
         
         // Calculate gravity forces
         mobs = self._mobs;
@@ -184,7 +210,12 @@ gv.Spacetime = new JS.Class('Spacetime', myt.Eventable, {
         }
         
         // Update mob positions
-        j = allMobsLen;
-        while (j) allMobs[--j].applyDeltas(dt);
+        i = allMobsLen;
+        while (i) allMobs[--i].applyDeltas(dt);
+        
+        // Update child mobs so they can track their parent pos/vel
+        childMobs = self._childMobs;
+        i = childMobs.length;
+        while (i) childMobs[--i].updateChildMob();
     }
 });

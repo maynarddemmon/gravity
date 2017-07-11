@@ -25,10 +25,10 @@
     TODO:
         - Handle destruction of the player ship (respawn?)
         
-        - Formal docking state (no rotation while docked, no docking while rotating)
+        - Docking only via specific angles (front to front)
+        
         - Formal landed state (no rotation while landed, no landing while rotating)
         - Landing via specific angles with a higher collision threshold (landing gear on back)
-        - Docking only via specific angles (front to front)
         
         - Collisions with deflection when below a destruction threshold
         
@@ -217,7 +217,7 @@ gv.Button = new JS.Class('Button', myt.SimpleButton, {
     // Life Cycle //////////////////////////////////////////////////////////////
     initNode: function(parent, attrs) {
         if (attrs.height == null) attrs.height = 16;
-        if (attrs.textY == null) attrs.textY = 2;
+        if (attrs.textY == null) attrs.textY = 3;
         
         if (attrs.roundedCorners == null) attrs.roundedCorners = 2;
         attrs.activeColor = '#005500';
@@ -264,6 +264,19 @@ gv.Button = new JS.Class('Button', myt.SimpleButton, {
             textView.setX(inset);
             this.setWidth(inset + textView.width + this.outset);
         }
+    }
+});
+
+gv.CenteredButton = new JS.Class('CenteredButton', gv.Button, {
+    initNode: function(parent, attrs) {
+        attrs.roundedCorners = 9;
+        attrs.height = 18;
+        attrs.textY = 4;
+        
+        this.callSuper(parent, attrs);
+        
+        var textView = this.textView;
+        textView.setAlign('center');
     }
 });
 

@@ -107,12 +107,12 @@ gv.Mob = new JS.Class('Mob', myt.Eventable, {
     },
     
     /** @private */
-    _shiftAwayFrom: function(mob) {
+    _shiftAwayFrom: function(mob, extraDistance) {
         var self = this,
             dx = self.x - mob.x,
             dy = self.y - mob.y,
             distance = self.measureCenterDistance(mob),
-            targetDistance = self.radius + mob.radius + 0.125, // 0.125 meters extra
+            targetDistance = self.radius + mob.radius + (extraDistance || 0),
             scale;
             
         if (distance !== 0) {
@@ -138,15 +138,17 @@ gv.Mob = new JS.Class('Mob', myt.Eventable, {
             massRatioB = massB / combinedMass,
             combinedVx = self.vx * massRatioA + mob.vx * massRatioB,
             combinedVy = self.vy * massRatioA + mob.vy * massRatioB,
-            speed;
+            speed,
+            selfIsShip = self.isType('ship'),
+            mobIsShip = mob.isType('ship');
         
         // Check ship collision first
-        if (self.isType('ship') || mob.isType('ship')) {
+        if (selfIsShip || mobIsShip) {
             speed = self.measureRelativeSpeed(mob);
             
-console.log('speed', speed, gv.SAFE_SHIP_COLLISION_THRESHOLD);
             if (speed <= gv.SAFE_SHIP_COLLISION_THRESHOLD) {
-console.log('SAFE COLLISION');
+                console.log('SAFE COLLISION');
+                
                 // Lock together by giving each mob the same velocity.
                 self.setVx(combinedVx);
                 self.setVy(combinedVy);
@@ -156,15 +158,25 @@ console.log('SAFE COLLISION');
                 // Push back the less massive body a tiny bit so they won't
                 // immediately recollide
                 if (selfIsMoreMassive) {
-                    mob._shiftAwayFrom(self);
+                    mob._shiftAwayFrom(self, 0.1);
                 } else {
-                    self._shiftAwayFrom(mob);
+                    self._shiftAwayFrom(mob, 0.1);
+                }
+                
+                // Dock if both ships
+                if (selfIsShip && mobIsShip) {
+                    if (selfIsMoreMassive) {
+                        mob.dockWith(self, true);
+                    } else {
+                        self.dockWith(mob, true);
+                    }
                 }
                 
                 return;
             }
         }
-console.log('COLLISION!!!', mob.label, self.label);
+        
+        console.log('COLLISION!!!', mob.label, self.label);
         
         // Remove both mobs since they collided
         spacetime.removeMob(self);
@@ -191,8 +203,7 @@ console.log('COLLISION!!!', mob.label, self.label);
     },
     
     resetForces: function() {
-        var self = this;
-        self._forces.length = self.dvx = self.dvy = 0;
+        this._forces.length = this.dvx = this.dvy = 0;
     },
     
     incrementDeltaV: function(mob) {
@@ -216,6 +227,37 @@ console.log('COLLISION!!!', mob.label, self.label);
         self.y += vy * dt;
         
         // Update Angle
-        self.angle = (self.angle + self.va * dt) % gv.TWO_PI;
+        if (self.va !== 0) self.angle = (self.angle + self.va * dt) % gv.TWO_PI;
+    },
+    
+    updateChildMob: function() {
+        var self = this,
+            parentMob = self._parentMob;
+        if (parentMob) {
+            self.vx = parentMob.vx;
+            self.vy = parentMob.vy;
+            self.x = parentMob.x + self._parentMobDx;
+            self.y = parentMob.y + self._parentMobDy;
+        }
+    },
+    
+    // Child Mobs
+    isChildMob: function() {return this._parentMob != null;},
+    isChildMobOf: function(parentMob) {return this._parentMob === parentMob;},
+    
+    setParentMob: function(parentMob) {
+        var self = this,
+            spacetime = gv.spacetime;
+        self._parentMob = parentMob;
+        if (parentMob != null) {
+            // Remember how far we are from our parent so we can preserve it
+            // during spacetime updates.
+            self._parentMobDx = self.x - parentMob.x;
+            self._parentMobDy = self.y - parentMob.y;
+            
+            spacetime.addChildMob(self);
+        } else {
+            spacetime.removeChildMob(self);
+        }
     }
 });

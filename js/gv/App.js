@@ -98,6 +98,11 @@ gv.App = new JS.Class('App', myt.View, {
         self._scaleLabel = new M.Text(rightPanel, {x:5, y:28, fontSize:'10px', textColor:'#00ff00'});
         self._shipThrustLabel = new M.Text(rightPanel, {x:5, y:40, fontSize:'10px', textColor:'#00ff00'});
         self._shipStrafeLabel = new M.Text(rightPanel, {x:5, y:52, fontSize:'10px', textColor:'#00ff00'});
+        self._dockStatusBtn = new GV.CenteredButton(rightPanel, {x:5, y:64, width:90}, [{
+            doActivated: function() {
+                self.getPlayerShip().undockFromAll();
+            }
+        }]);
         
         self._updateSize();
         
@@ -109,6 +114,7 @@ gv.App = new JS.Class('App', myt.View, {
         self.updateScaleLabel();
         self.updateShipThrustLabel();
         self.updateShipStrafeLabel();
+        self.updateShipDockStatus();
         
         spacetime.start();
     },
@@ -178,6 +184,14 @@ gv.App = new JS.Class('App', myt.View, {
     updateScaleLabel: function() {
         if (!this._uiReady) return;
         this._scaleLabel.setText('Scale:' + gv.formatMeters(this.map.inverseDistanceScale) + '/pixel');
+    },
+    
+    updateShipDockStatus: function() {
+        var ship = this.getPlayerShip(),
+            isDocked = ship.isDocked(),
+            btn = this._dockStatusBtn;
+        btn.setText(isDocked ? 'docked' : 'not docked');
+        btn.setDisabled(!isDocked);
     },
     
     updateShipThrustLabel: function() {
