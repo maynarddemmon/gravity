@@ -163,7 +163,7 @@ gv.Mob = new JS.Class('Mob', myt.Eventable, {
                     self._shiftAwayFrom(mob, 0.1);
                 }
                 
-                // Dock if both ships
+                // Dock if both are ships
                 if (selfIsShip && mobIsShip) {
                     if (selfIsMoreMassive) {
                         mob.dockWith(self, true);

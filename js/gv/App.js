@@ -38,7 +38,7 @@ gv.App = new JS.Class('App', myt.View, {
         
         // Build UI
         GV.map = self.map = new GV.Map(self, {
-            scaleValue:0.9, // 14.2 earth/moon
+            scaleValue:-0.5, // 14.2 earth/moon
             centerMob:spacetime.getMobByLabel('My Spaceship')
         });
         
@@ -104,10 +104,10 @@ gv.App = new JS.Class('App', myt.View, {
                 var ship = self.getPlayerShip();
                 switch (this.getText()) {
                     case 'enable':
-                        ship.enableDock();
+                        ship.enableAllDocks();
                         break;
                     case 'disable':
-                        ship.disableDock();
+                        ship.disableAllDocks();
                         break;
                     case 'undock':
                         ship.undockFromAll();
@@ -201,7 +201,7 @@ gv.App = new JS.Class('App', myt.View, {
     
     updateShipDockStatus: function() {
         var ship = this.getPlayerShip(),
-            status = ship.getDockStatus(),
+            status = ship.getDockStatus(ship.getDock()),
             btn = this._dockStatusBtn;
         switch (status) {
             case 'enabled':
@@ -540,21 +540,49 @@ gv.App = new JS.Class('App', myt.View, {
         
         
         // Ships
-        var ship = new GV.Ship({playerShip:true, mass:1.0e6, density:250, label:'My Spaceship'});
-        GV.giveMobCircularOrbit(ship, earth, 1.291e7, 0);
+        var DOCK_WIDTH = PI / 12;
+        
+        var ship = new GV.Ship({
+            mass:2.0e6, density:250, label:'Soyuz', angle:4
+        });
+        ship.enableAllDocks();
+        GV.giveMobCircularOrbit(ship, earth, 1.291005e7, 0.000001);
         mobs.push(ship);
         
-        var ship2 = new GV.Ship({mass:2.0e6, density:250, label:'Soyuz', dockingEnabled:true, angle:4});
-        GV.giveMobCircularOrbit(ship2, earth, 1.291005e7, 0.000001);
-        mobs.push(ship2);
+        ship = new GV.Ship({
+            mass:419.6e6, density:200, label:'iss',
+            docks:[
+                {start:-PI/24,   end:-PI/24 + DOCK_WIDTH},
+                {start:11*PI/24, end:11*PI/24 + DOCK_WIDTH},
+                {start:23*PI/24, end:23*PI/24 + DOCK_WIDTH},
+                {start:35*PI/24, end:35*PI/24 + DOCK_WIDTH}
+            ]
+        });
+        ship.enableAllDocks();
+        GV.giveMobCircularOrbit(ship, earth, 1.3072e7, 0.01);
+        mobs.push(ship);
         
-        var iss = new GV.Ship({mass:419.6e6, density:250, label:'iss', dockingEnabled:true});
-        GV.giveMobCircularOrbit(iss, earth, 1.3072e7, 0.01);
-        mobs.push(iss);
+        ship = new GV.Ship({
+            mass:1.0e6, density:250, label:'Lunar Orbiter'
+        });
+        ship.enableAllDocks();
+        GV.giveMobCircularOrbit(ship, luna, 5.0e6, 0);
+        mobs.push(ship);
         
-        var ship3 = new GV.Ship({mass:1.0e6, density:250, label:'Lunar Orbiter', dockingEnabled:true});
-        GV.giveMobCircularOrbit(ship3, luna, 5.0e6, 0);
-        mobs.push(ship3);
+        ship = new GV.Ship({
+            mass:4.0e6, density:250, label:'Supply Ship', angle:PI
+        });
+        ship.enableAllDocks();
+        GV.giveMobCircularOrbit(ship, earth, 1.30722e7, 0.0100006);
+        ship.setVx(ship.vx -0.5);
+        mobs.push(ship);
+        
+        
+        ship = new GV.Ship({
+            playerShip:true, mass:1.0e6, density:250, label:'My Spaceship'
+        });
+        GV.giveMobCircularOrbit(ship, earth, 1.30718e7, 0.01);
+        mobs.push(ship);
         
         spacetime.bulkAddMob(mobs);
     }

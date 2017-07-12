@@ -10,10 +10,11 @@ gv.Ship = new JS.Class('Ship', gv.Mob, {
     // Life Cycle //////////////////////////////////////////////////////////////
     init: function(attrs) {
         this.rotationLevel = this.thrust = this.strafe = 0;
-        this._dockedWith = {};
-        this._dockingArcs = [
-            [-Math.PI / 12, Math.PI / 12]
-        ];
+        
+        if (attrs.docks == null) {
+            var start = -Math.PI / 12;
+            attrs.docks = [{start:start, end:-start}];
+        }
         
         attrs.type = 'ship';
         
@@ -34,80 +35,139 @@ gv.Ship = new JS.Class('Ship', gv.Mob, {
         if (this.isPlayerShip()) gv.app.updateShipStrafeLabel();
     },
     
-    getDockingArcs: function() {
-        return this._dockingArcs;
-    },
+    setPlayerShip: function(v) {if (v) gv.app.setPlayerShip(this);},
+    isPlayerShip: function() {return gv.app.getPlayerShip() === this;},
     
-    getDockStatus: function() {
-        if (Object.keys(this._dockedWith).length > 0) return "docked";
-        if (this.dockingEnabled) return 'enabled';
-        return "disabled";
+    setDocks: function(docks) {
+        // Generate unique IDs for each dock.
+        var i = docks.length, dock;
+        while (i) {
+            dock = docks[--i];
+            if (dock.id == null) dock.id = myt.generateGuid();
+            if (dock.enabled == null) dock.enabled = false;
+        }
+        
+        this.docks = docks;
     },
+    getDocks: function() {return this.docks;},
     
     
     // Methods /////////////////////////////////////////////////////////////////
-    enableDock: function() {
-        if (this.getDockStatus() === 'disabled') this.dockingEnabled = true;
-        if (this.isPlayerShip()) gv.app.updateShipDockStatus();
-    },
     
-    disableDock: function() {
-        if (this.getDockStatus() === 'enabled') this.dockingEnabled = false;
-        if (this.isPlayerShip()) gv.app.updateShipDockStatus();
-    },
-    
-    canDockWith: function(ship, checkOther) {
-        if (this.thrust !== 0) return false;
-        if (this.strafe !== 0) return false;
-        if (this.va !== 0) return false;
-        if (checkOther) {
-            if (!ship.canDockWith(this, false)) return false;
-        }
-        if (this.getDockStatus() !== 'enabled') return false;
+    // Docking //
+    getDock: function(id) {
+        var docks = this.docks, i = docks.length, dock;
         
-        // Lastly, verify dock angle
-        var arcs = this.getDockingArcs(), i = arcs.length, arc,
-            angleToCheck = Math.atan2(ship.y - this.y, ship.x - this.x) - this.angle;
+        // If only 1 dock exists and no id was provided then return it.
+        if (i === 1 && id == null) return docks[0];
+        
         while (i) {
-            arc = arcs[--i];
-            if (gv.isAngleInRange(angleToCheck, arc[0], arc[1])) return true;
+            dock = docks[--i];
+            if (dock.id === id) return dock;
         }
+    },
+    
+    enableAllDocks: function() {
+        var docks = this.docks, i = docks.length;
+        while (i) this.enableDock(docks[--i]);
+    },
+    
+    enableDock: function(dock) {
+        if (this.getDockStatus(dock) === 'disabled') dock.enabled = true;
+        this._updateDockStatus();
+    },
+    
+    disableAllDocks: function() {
+        var docks = this.docks, i = docks.length;
+        while (i) this.disableDock(docks[--i]);
+    },
+    
+    disableDock: function(dock) {
+        if (this.getDockStatus(dock) === 'enabled') dock.enabled = false;
+        this._updateDockStatus();
+    },
+    
+    getDockStatus: function(dock) {
+        if (this.isDockedViaDock(dock)) return 'docked';
+        if (dock.enabled) return 'enabled';
+        return "disabled";
+    },
+    
+    /** Checks if the provided dock is in use. */
+    isDockedViaDock: function(dock) {
+        return dock.ship != null;
+    },
+    
+    /** Checks if any docks are in use. */
+    isDocked: function() {
+        var docks = this.docks, i = docks.length;
+        while (i) if (this.isDockedViaDock(docks[--i])) return true;
         return false;
     },
     
+    /** Returns the dock, if any, that the provided ship can dock with on
+        this ship. */
+    canDockWith: function(ship, checkOther) {
+        if (this.thrust === 0 && this.strafe === 0 && this.va === 0) {
+            if (checkOther) if (ship.canDockWith(this, false) == null) return null;
+            
+            // Verify dock state and angle
+            var dock = this.getClosestDockTo(ship);
+            if (this.getDockStatus(dock) === 'enabled') return dock;
+        }
+        
+        return null;
+    },
+    
+    getClosestDockTo: function(mob) {
+        var docks = this.getDocks(), i = docks.length, dock,
+            angleToCheck = Math.atan2(mob.y - this.y, mob.x - this.x) - this.angle;
+        while (i) {
+            dock = docks[--i];
+            if (gv.isAngleInRange(angleToCheck, dock.start, dock.end)) return dock;
+        }
+        return null;
+    },
+    
     dockWith: function(ship, makeChild) {
-        if (this.canDockWith(ship, true)) {
+        var dock = this.canDockWith(ship, true);
+        if (dock) {
             if (makeChild) {
                 this.setParentMob(ship);
-                this.setThrust(0);
-                this.setStrafe(0);
                 ship.dockWith(this, false);
             }
-            this._dockedWith[ship._id] = ship;
-            if (this.isPlayerShip()) gv.app.updateShipDockStatus();
+            dock.ship = ship;
+            dock.shipDock = ship.getClosestDockTo(this);
+            this._updateDockStatus();
         }
     },
     
     undockFromAll: function() {
-        for (var key in this._dockedWith) this.undockFrom(this._dockedWith[key]);
+        var docks = this.docks, i = docks.length;
+        while (i) this.undockFrom(docks[--i], true);
     },
     
-    undockFrom: function(ship) {
-        delete this._dockedWith[ship._id];
-        if (this.isChildMobOf(ship)) {
-            this.setParentMob();
-            ship.undockFrom(this);
-            if (this.isPlayerShip()) gv.app.updateShipDockStatus();
+    undockFrom: function(dock, undockOther) {
+        var ship = dock.ship,
+            shipDock = dock.shipDock;
+        if (ship) {
+            dock.ship = dock.shipDock = null;
+            
+            if (undockOther) ship.undockFrom(shipDock, false);
+            
+            if (this.isChildMobOf(ship)) {
+                this.setParentMob();
+                this._updateDockStatus();
+            }
         }
     },
     
-    isDocked: function() {
-        return Object.keys(this._dockedWith).length > 0;
+    /** @private */
+    _updateDockStatus: function() {
+        if (this.isPlayerShip()) gv.app.updateShipDockStatus();
     },
     
-    setPlayerShip: function(v) {if (v) gv.app.setPlayerShip(this);},
-    isPlayerShip: function() {return gv.app.getPlayerShip() === this;},
-    
+    // Rotation //
     rotateLeft: function() {this._applyRotationalThrust(false);},
     rotateRight: function() {this._applyRotationalThrust(true);},
     
@@ -129,6 +189,7 @@ gv.Ship = new JS.Class('Ship', gv.Mob, {
         this.setVa(va);
     },
     
+    // Thrust //
     increaseThrust: function() {this._applyThrust(true);},
     decreaseThrust: function() {this._applyThrust(false);},
     
@@ -156,6 +217,7 @@ gv.Ship = new JS.Class('Ship', gv.Mob, {
         this.setThrust(thrust);
     },
     
+    // Strafe Thrust //
     strafeLeft: function() {this._applyStrafe(false);},
     strafeRight: function() {this._applyStrafe(true);},
     
@@ -175,6 +237,7 @@ gv.Ship = new JS.Class('Ship', gv.Mob, {
         this.setStrafe(strafe);
     },
     
+    // Spacetime Updates //
     /** @overrides */
     applyDeltas: function(dt) {
         var self = this,

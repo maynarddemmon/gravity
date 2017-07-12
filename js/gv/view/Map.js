@@ -277,7 +277,7 @@ gv.Map = new JS.Class('Map', myt.View, {
             layer.setStrokeStyle('#00ff00');
             layer.stroke();
             layer.setGlobalAlpha(0.75);
-            self._drawDockingArcs(layer, highlightMob, mobCx, mobCy, mobR);
+            self._drawDocks(layer, highlightMob, mobCx, mobCy, mobR);
         }
         
         layer.setGlobalAlpha(0.5);
@@ -291,7 +291,7 @@ gv.Map = new JS.Class('Map', myt.View, {
             layer.setStrokeStyle('#00ff00');
             layer.stroke();
             layer.setGlobalAlpha(0.75);
-            self._drawDockingArcs(layer, selectedMob, mobCx, mobCy, mobR);
+            self._drawDocks(layer, selectedMob, mobCx, mobCy, mobR);
         }
         
         //// Draw the center mob highlight /////////////////////////////////////
@@ -338,8 +338,8 @@ gv.Map = new JS.Class('Map', myt.View, {
         layer.stroke();
         layer.fillText(centerMob.label, mobCx - layer.measureText(centerMob.label).width / 2, mobCy - mobR - 6);
         
-        // Draw docking arcs
-        self._drawDockingArcs(layer, centerMob, mobCx, mobCy, mobR);
+        // Draw docks
+        self._drawDocks(layer, centerMob, mobCx, mobCy, mobR);
         
         // Outer ring
         layer.setGlobalAlpha(0.25);
@@ -399,20 +399,20 @@ gv.Map = new JS.Class('Map', myt.View, {
     },
     
     /** @private */
-    _drawDockingArcs: function(layer, mob, mobCx, mobCy, mobR) {
+    _drawDocks: function(layer, mob, mobCx, mobCy, mobR) {
         if (mob.type === 'ship') {
-            var dockStatus = mob.getDockStatus();
-            
-            // Don't draw docking arcs if they're disabled
-            if (dockStatus === 'disabled') return;
-            
-            var dockingArcs = mob.getDockingArcs(),
-                i = dockingArcs.length,
-                dockingArc;
+            var docks = mob.getDocks(),
+                i = docks.length,
+                dock, dockStatus;
             while (i) {
-                dockingArc = dockingArcs[--i];
+                dock = docks[--i];
+                dockStatus = mob.getDockStatus(dock);
+                
+                // Don't draw dock if it's disabled
+                if (dockStatus === 'disabled') continue;
+                
                 layer.beginPath();
-                layer.arc(mobCx, mobCy, mobR + 0.5, mob.angle + dockingArc[0], mob.angle + dockingArc[1]);
+                layer.arc(mobCx, mobCy, mobR + 0.5, mob.angle + dock.start, mob.angle + dock.end);
                 layer.setStrokeStyle(dockStatus === 'docked' ? '#00ff66' : '#cccc00');
                 layer.setLineWidth(3.5);
                 layer.stroke();
