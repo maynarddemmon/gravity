@@ -557,7 +557,7 @@ gv.Map = new JS.Class('Map', myt.View, {
     _drawCircle: function(layer, x, y, r) {
         layer.beginPath();
         
-        if (r > 100000) {
+        if (r > 50000) {
             var GV = gv,
                 halfMapSize = this._halfMapSize,
                 mapSize = 2 * halfMapSize,
@@ -568,13 +568,12 @@ gv.Map = new JS.Class('Map', myt.View, {
             } else {
                 // Draw large circles as a poly to prevent jitter
                 pt = GV.getClosestPointOnACircleToAPoint(x, y, r, halfMapSize, halfMapSize);
-                
-                layer.moveTo(x, y);
-                angle = Math.atan2(halfMapSize - y, halfMapSize - x) - 0.005;
-                layer.lineTo(x + r * Math.cos(angle), y + r * Math.sin(angle));
-                layer.lineTo(pt.x, pt.y);
-                angle += 0.01;
-                layer.lineTo(x + r * Math.cos(angle), y + r * Math.sin(angle));
+                angle = Math.atan2(halfMapSize - y, halfMapSize - x) + GV.HALF_PI;
+                x = pt.x;
+                y = pt.y;
+                layer.moveTo(x + 8192 * Math.cos(angle), y + 8192 * Math.sin(angle));
+                angle += Math.PI;
+                layer.lineTo(x + 8192 * Math.cos(angle), y + 8192 * Math.sin(angle));
             }
         } else {
             layer.circle(x, y, r);

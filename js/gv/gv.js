@@ -25,8 +25,6 @@
     TODO:
         - Handle destruction of the player ship (respawn?)
         
-        - Docking only via specific angles (front to front)
-        
         - Formal landed state (no rotation while landed, no landing while rotating)
         - Landing via specific angles with a higher collision threshold (landing gear on back)
         
@@ -62,7 +60,7 @@ gv = (function() {
         // being destroyed.
         SAFE_SHIP_COLLISION_THRESHOLD:1.0,
         
-        FORCE_DISPLAY_THRESHOLD:0.0001,
+        FORCE_DISPLAY_THRESHOLD:0.000001,
         
         // Makes all mobs larger
         DENSITY_SCALING:1,
@@ -153,37 +151,50 @@ gv = (function() {
         },
         
         getIntersectionOfTwoCircles: function(x1, y1, r1, x2, y2, r2) {
-            var diffX = x1 - x2,
-                diffY = y1 - y2,
-                R = Math.sqrt(diffX * diffX + diffY * diffY);
-            
-            if (R === 0) {
-                // Circles with the same center and same radius intersect
-                // everywhere or nowhere. Either way return an empty result.
-                return [];
-            }
-            
-            // No intersection so return an empty list of results.
-            if (!(Math.abs(r1 - r2) <= R && R <= r1 + r2)) return [];
-            
-            var R2 = R * R,
-                R4 = R2 * R2,
-                a = (r1 * r1 - r2 * r2) / (2 * R2),
-                r2r2 = (r1 * r1 - r2 * r2),
-                c = Math.sqrt(2 * (r1 * r1 + r2 * r2) / R2 - (r2r2 * r2r2) / R4 - 1),
+            if (r1 > 8192 * r2) {
+                // The first circle is much bigger than the second so
+                // approximate using the tangent line.
+                var angle = Math.atan2(y2 - y1, x2 - x1) - Math.PI / 2,
+                    dx = r2 * Math.cos(angle),
+                    dy = r2 * Math.sin(angle);
+                return [{x:x2 + dx, y:y2 + dy},{x:x2 - dx, y:y2 - dy}];
+            } else if (r2 > 8192 * r1) {
+                // The second circle is much bigger than the first so
+                // approximate using the tangent line.
+                var angle = Math.atan2(y1 - y2, x1 - x2) - Math.PI / 2,
+                    dx = r1 * Math.cos(angle),
+                    dy = r1 * Math.sin(angle);
+                return [{x:x1 + dx, y:y1 + dy},{x:x1 - dx, y:y1 - dy}];
+            } else {
+                var diffX = x1 - x2,
+                    diffY = y1 - y2,
+                    R = Math.sqrt(diffX * diffX + diffY * diffY);
                 
-                fx = (x1 + x2) / 2 + a * (x2 - x1),
-                gx = c * (y2 - y1) / 2,
-                fy = (y1 + y2) / 2 + a * (y2 - y1),
-                gy = c * (x1 - x2) / 2;
-            
-            // Note if gy == 0 and gx == 0 then the circles are tangent and
-            // there is only one solution but that one solution will just be
-            // duplicated as the code is currently written
-            return [
-                {x:fx + gx, y:fy + gy}, 
-                {x:fx - gx, y:fy - gy}
-            ];
+                if (R === 0) {
+                    // Circles with the same center and same radius intersect
+                    // everywhere or nowhere. Either way return an empty result.
+                    return [];
+                }
+                
+                // No intersection so return an empty list of results.
+                if (!(Math.abs(r1 - r2) <= R && R <= r1 + r2)) return [];
+                
+                var R2 = R * R,
+                    R4 = R2 * R2,
+                    a = (r1 * r1 - r2 * r2) / (2 * R2),
+                    r2r2 = (r1 * r1 - r2 * r2),
+                    c = Math.sqrt(2 * (r1 * r1 + r2 * r2) / R2 - (r2r2 * r2r2) / R4 - 1),
+                    
+                    fx = (x1 + x2) / 2 + a * (x2 - x1),
+                    gx = c * (y2 - y1) / 2,
+                    fy = (y1 + y2) / 2 + a * (y2 - y1),
+                    gy = c * (x1 - x2) / 2;
+                
+                // Note if gy == 0 and gx == 0 then the circles are tangent and
+                // there is only one solution but that one solution will just be
+                // duplicated as the code is currently written
+                return [{x:fx + gx, y:fy + gy}, {x:fx - gx, y:fy - gy}];
+            }
         },
         
         isAngleInRange: function(angle, rangeStart, rangeEnd) {
