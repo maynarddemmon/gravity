@@ -98,11 +98,24 @@ gv.App = new JS.Class('App', myt.View, {
         self._scaleLabel = new M.Text(rightPanel, {x:5, y:28, fontSize:'10px', textColor:'#00ff00'});
         self._shipThrustLabel = new M.Text(rightPanel, {x:5, y:40, fontSize:'10px', textColor:'#00ff00'});
         self._shipStrafeLabel = new M.Text(rightPanel, {x:5, y:52, fontSize:'10px', textColor:'#00ff00'});
-        self._dockStatusBtn = new GV.CenteredButton(rightPanel, {x:5, y:64, width:90}, [{
+        
+        self._dockStatusBtn = new GV.CenteredButton(rightPanel, {x:5, y:64, width:90, focusable:false}, [{
             doActivated: function() {
-                self.getPlayerShip().undockFromAll();
+                var ship = self.getPlayerShip();
+                switch (this.getText()) {
+                    case 'enable':
+                        ship.enableDock();
+                        break;
+                    case 'disable':
+                        ship.disableDock();
+                        break;
+                    case 'undock':
+                        ship.undockFromAll();
+                        break;
+                }
             }
         }]);
+        self._dockStatusLabel = new M.Text(rightPanel, {x:100, y:68, fontSize:'10px', textColor:'#00ff00'});
         
         self._updateSize();
         
@@ -188,10 +201,21 @@ gv.App = new JS.Class('App', myt.View, {
     
     updateShipDockStatus: function() {
         var ship = this.getPlayerShip(),
-            isDocked = ship.isDocked(),
+            status = ship.getDockStatus(),
             btn = this._dockStatusBtn;
-        btn.setText(isDocked ? 'docked' : 'not docked');
-        btn.setDisabled(!isDocked);
+        switch (status) {
+            case 'enabled':
+                btn.setText('disable');
+                break;
+            case 'disabled':
+                btn.setText('enable');
+                break;
+            case 'docked':
+                btn.setText('undock');
+                break;
+        }
+        
+        this._dockStatusLabel.setText('status:' + status);
     },
     
     updateShipThrustLabel: function() {
@@ -520,15 +544,15 @@ gv.App = new JS.Class('App', myt.View, {
         GV.giveMobCircularOrbit(ship, earth, 1.291e7, 0);
         mobs.push(ship);
         
-        var ship2 = new GV.Ship({mass:2.0e6, density:250, label:'Soyuz', angle:4});
+        var ship2 = new GV.Ship({mass:2.0e6, density:250, label:'Soyuz', dockingEnabled:true, angle:4});
         GV.giveMobCircularOrbit(ship2, earth, 1.291005e7, 0.000001);
         mobs.push(ship2);
         
-        var iss = new GV.Ship({mass:419.6e6, density:250, label:'iss'});
+        var iss = new GV.Ship({mass:419.6e6, density:250, label:'iss', dockingEnabled:true});
         GV.giveMobCircularOrbit(iss, earth, 1.3072e7, 0.01);
         mobs.push(iss);
         
-        var ship3 = new GV.Ship({mass:1.0e6, density:250, label:'Lunar Orbiter'});
+        var ship3 = new GV.Ship({mass:1.0e6, density:250, label:'Lunar Orbiter', dockingEnabled:true});
         GV.giveMobCircularOrbit(ship3, luna, 5.0e6, 0);
         mobs.push(ship3);
         

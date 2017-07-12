@@ -118,7 +118,7 @@ gv.Map = new JS.Class('Map', myt.View, {
     _handleWheel: function(event) {
         // Limit wheel Y to the allowed exponential values
         var self = this;
-        self._wheelY = Math.min(Math.max(-190, self._wheelY + event.value.deltaY), self._MAX_SCALE_EXPONENT * self._wheelSpeed);
+        self._wheelY = Math.min(Math.max(-230, self._wheelY + event.value.deltaY), self._MAX_SCALE_EXPONENT * self._wheelSpeed);
         self._updateDistanceScale();
     },
     
@@ -270,24 +270,37 @@ gv.Map = new JS.Class('Map', myt.View, {
         
         // Draw the highlight mob ring if necessary
         if (drawHighlight) {
-            self._drawCircle(layer, offsetX + highlightMob.x * scale, offsetY + highlightMob.y * scale, Math.max(highlightMob.radius * scale, 8));
+            mobR = Math.max(highlightMob.radius * scale, 8);
+            mobCx = offsetX + highlightMob.x * scale;
+            mobCy = offsetY + highlightMob.y * scale;
+            self._drawCircle(layer, mobCx, mobCy, mobR);
             layer.setStrokeStyle('#00ff00');
             layer.stroke();
+            layer.setGlobalAlpha(0.75);
+            self._drawDockingArcs(layer, highlightMob, mobCx, mobCy, mobR);
         }
+        
+        layer.setGlobalAlpha(0.5);
         
         // Draw the selected mob ring if necessary
         if (drawSelected) {
-            self._drawCircle(layer, offsetX + selectedMob.x * scale, offsetY + selectedMob.y * scale, Math.max(selectedMob.radius * scale, 8));
+            mobR = Math.max(selectedMob.radius * scale, 8);
+            mobCx = offsetX + selectedMob.x * scale;
+            mobCy = offsetY + selectedMob.y * scale;
+            self._drawCircle(layer, mobCx, mobCy, mobR);
             layer.setStrokeStyle('#00ff00');
             layer.stroke();
+            layer.setGlobalAlpha(0.75);
+            self._drawDockingArcs(layer, selectedMob, mobCx, mobCy, mobR);
         }
         
         //// Draw the center mob highlight /////////////////////////////////////
         mobCx = offsetX + centerMob.x * scale;
         mobCy = offsetY + centerMob.y * scale;
-        mobR = Math.max(centerMob.radius * scale, 60),
+        mobR = Math.max(centerMob.radius * scale, 20),
         
         // Force Arrows
+        layer.setGlobalAlpha(1.0);
         forces = centerMob.getForces();
         forceCount = forces.length;
         while (forceCount) {
@@ -309,7 +322,6 @@ gv.Map = new JS.Class('Map', myt.View, {
         self._drawForce(layer, forceObj, mobCx, mobCy, scale, mobR + 4, '#00ff00');
         
         // Directional Arrow
-        layer.setGlobalAlpha(1.0);
         layer.beginPath();
         layer.moveTo(mobCx, mobCy);
         angle = centerMob.angle - 0.02;
@@ -325,6 +337,9 @@ gv.Map = new JS.Class('Map', myt.View, {
         layer.setStrokeStyle('#00ff00');
         layer.stroke();
         layer.fillText(centerMob.label, mobCx - layer.measureText(centerMob.label).width / 2, mobCy - mobR - 6);
+        
+        // Draw docking arcs
+        self._drawDockingArcs(layer, centerMob, mobCx, mobCy, mobR);
         
         // Outer ring
         layer.setGlobalAlpha(0.25);
@@ -381,6 +396,29 @@ gv.Map = new JS.Class('Map', myt.View, {
         
         // Redraw
         self._mobsLayer.redraw(haloData);
+    },
+    
+    /** @private */
+    _drawDockingArcs: function(layer, mob, mobCx, mobCy, mobR) {
+        if (mob.type === 'ship') {
+            var dockStatus = mob.getDockStatus();
+            
+            // Don't draw docking arcs if they're disabled
+            if (dockStatus === 'disabled') return;
+            
+            var dockingArcs = mob.getDockingArcs(),
+                i = dockingArcs.length,
+                dockingArc;
+            while (i) {
+                dockingArc = dockingArcs[--i];
+                layer.beginPath();
+                layer.arc(mobCx, mobCy, mobR + 0.5, mob.angle + dockingArc[0], mob.angle + dockingArc[1]);
+                layer.setStrokeStyle(dockStatus === 'docked' ? '#00ff66' : '#cccc00');
+                layer.setLineWidth(3.5);
+                layer.stroke();
+                layer.setLineWidth(1.5);
+            }
+        }
     },
     
     /** @private */
@@ -531,16 +569,8 @@ gv.Map = new JS.Class('Map', myt.View, {
                 // Draw large circles as a poly to prevent jitter
                 pt = GV.getClosestPointOnACircleToAPoint(x, y, r, halfMapSize, halfMapSize);
                 
-                if (halfMapSize === x) {
-                    angle = GV.HALF_PI * (y > halfMapSize ? 1 : -1);
-                } else if (x > halfMapSize) {
-                    angle = Math.atan((halfMapSize - y) / (halfMapSize - x)) + Math.PI;
-                } else {
-                    angle = Math.atan((halfMapSize - y) / (halfMapSize - x));
-                }
-                
                 layer.moveTo(x, y);
-                angle -= 0.005;
+                angle = Math.atan2(halfMapSize - y, halfMapSize - x) - 0.005;
                 layer.lineTo(x + r * Math.cos(angle), y + r * Math.sin(angle));
                 layer.lineTo(pt.x, pt.y);
                 angle += 0.01;

@@ -183,17 +183,18 @@ gv.Mob = new JS.Class('Mob', myt.Eventable, {
         spacetime.removeMob(mob);
         
         // Make a new mob
-        var newMob = spacetime.addMob(new gv.Mob({
-            mass:combinedMass,
-            density:self.density * massRatioA + mob.density * massRatioB,
-            x:self.x * massRatioA + mob.x * massRatioB,
-            y:self.y * massRatioA + mob.y * massRatioB,
-            vx:combinedVx,
-            vy:combinedVy,
-            mapCenter:self.isMapCenter() || mob.isMapCenter(),
-            label:selfIsMoreMassive ? self.label : mob.label,
-            type:selfIsMoreMassive ? self.type : mob.type
-        }));
+        var mobKlass = selfIsMoreMassive ? self.klass : mob.klass,
+            newMob = spacetime.addMob(new mobKlass({
+                mass:combinedMass,
+                density:self.density * massRatioA + mob.density * massRatioB,
+                x:self.x * massRatioA + mob.x * massRatioB,
+                y:self.y * massRatioA + mob.y * massRatioB,
+                vx:combinedVx,
+                vy:combinedVy,
+                mapCenter:self.isMapCenter() || mob.isMapCenter(),
+                label:selfIsMoreMassive ? self.label : mob.label,
+                type:selfIsMoreMassive ? self.type : mob.type
+            }));
         
         // Finally destroy both mobs now that we're done using information from them.
         self.destroy();

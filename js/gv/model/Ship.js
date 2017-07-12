@@ -11,6 +11,9 @@ gv.Ship = new JS.Class('Ship', gv.Mob, {
     init: function(attrs) {
         this.rotationLevel = this.thrust = this.strafe = 0;
         this._dockedWith = {};
+        this._dockingArcs = [
+            [-Math.PI / 12, Math.PI / 12]
+        ];
         
         attrs.type = 'ship';
         
@@ -31,25 +34,57 @@ gv.Ship = new JS.Class('Ship', gv.Mob, {
         if (this.isPlayerShip()) gv.app.updateShipStrafeLabel();
     },
     
+    getDockingArcs: function() {
+        return this._dockingArcs;
+    },
+    
+    getDockStatus: function() {
+        if (Object.keys(this._dockedWith).length > 0) return "docked";
+        if (this.dockingEnabled) return 'enabled';
+        return "disabled";
+    },
+    
     
     // Methods /////////////////////////////////////////////////////////////////
-    canDockWith: function(ship) {
+    enableDock: function() {
+        if (this.getDockStatus() === 'disabled') this.dockingEnabled = true;
+        if (this.isPlayerShip()) gv.app.updateShipDockStatus();
+    },
+    
+    disableDock: function() {
+        if (this.getDockStatus() === 'enabled') this.dockingEnabled = false;
+        if (this.isPlayerShip()) gv.app.updateShipDockStatus();
+    },
+    
+    canDockWith: function(ship, checkOther) {
         if (this.thrust !== 0) return false;
         if (this.strafe !== 0) return false;
         if (this.va !== 0) return false;
-        return true;
+        if (checkOther) {
+            if (!ship.canDockWith(this, false)) return false;
+        }
+        if (this.getDockStatus() !== 'enabled') return false;
+        
+        // Lastly, verify dock angle
+        var arcs = this.getDockingArcs(), i = arcs.length, arc,
+            angleToCheck = Math.atan2(ship.y - this.y, ship.x - this.x) - this.angle;
+        while (i) {
+            arc = arcs[--i];
+            if (gv.isAngleInRange(angleToCheck, arc[0], arc[1])) return true;
+        }
+        return false;
     },
     
     dockWith: function(ship, makeChild) {
-        if (this.canDockWith(ship)) {
-            this._dockedWith[ship._id] = ship;
+        if (this.canDockWith(ship, true)) {
             if (makeChild) {
                 this.setParentMob(ship);
                 this.setThrust(0);
                 this.setStrafe(0);
                 ship.dockWith(this, false);
-                if (this.isPlayerShip()) gv.app.updateShipDockStatus();
             }
+            this._dockedWith[ship._id] = ship;
+            if (this.isPlayerShip()) gv.app.updateShipDockStatus();
         }
     },
     

@@ -38,7 +38,6 @@
         - Color relative velocity when it's near orbit velocity
         
         - Multiple selected mobs.
-        - Simplify highlight mob HUD.
         - Update highlight mob when useing mousewheel to zoom
         - Key repeat support for thrust adjustments
         
@@ -61,7 +60,7 @@ gv = (function() {
         
         // The speed below which ships may collide with other mobs without
         // being destroyed.
-        SAFE_SHIP_COLLISION_THRESHOLD:2.0,
+        SAFE_SHIP_COLLISION_THRESHOLD:1.0,
         
         FORCE_DISPLAY_THRESHOLD:0.0001,
         
@@ -187,6 +186,30 @@ gv = (function() {
             ];
         },
         
+        isAngleInRange: function(angle, rangeStart, rangeEnd) {
+            // First normalize angle and ranges to be between 0 and two pi.
+            var TWO_PI = gv.TWO_PI;
+            
+            angle = angle % TWO_PI;
+            if (angle < 0) angle += TWO_PI;
+            
+            rangeStart = rangeStart % TWO_PI;
+            if (rangeStart < 0) rangeStart += TWO_PI;
+            
+            rangeEnd = rangeEnd % TWO_PI;
+            if (rangeEnd < 0) rangeEnd += TWO_PI;
+            
+            if (rangeStart < rangeEnd) {
+                // arc does not go through zero angle
+                if (angle >= rangeStart && angle <= rangeEnd) return true;
+            } else {
+                // Arc through zero angle
+                if (angle <= rangeEnd || angle >= rangeStart) return true;
+            }
+            
+            return false;
+        },
+        
         formatMeters: function(v, abbr, fix) {
             fix = fix == null ? 2 : fix;
             
@@ -252,6 +275,10 @@ gv.Button = new JS.Class('Button', myt.SimpleButton, {
     // Accessors ///////////////////////////////////////////////////////////////
     setText: function(v) {
         if (this.inited) this.textView.setText(v);
+    },
+    
+    getText: function() {
+        return this.textView.text;
     },
     
     
