@@ -9,6 +9,8 @@
 gv.Spacetime = new JS.Class('Spacetime', myt.Eventable, {
     // Life Cycle //////////////////////////////////////////////////////////////
     init: function(attrs) {
+        this.running = false;
+        
         this._mobs = [];
         this._reactOnlyMobs = [];
         this._allMobs = [];
@@ -19,6 +21,11 @@ gv.Spacetime = new JS.Class('Spacetime', myt.Eventable, {
         
         this.callSuper(attrs);
     },
+    
+    
+    // Accessors ///////////////////////////////////////////////////////////////
+    setRunning: function(v) {this.set('running', v, true);},
+    isRunning: function() {return this.running;},
     
     
     // Methods /////////////////////////////////////////////////////////////////
@@ -132,26 +139,17 @@ gv.Spacetime = new JS.Class('Spacetime', myt.Eventable, {
     
     // Time
     start: function() {
-        var self = this,
-            app = gv.app;
-        if (!self.isRunning()) self._intervalId = setInterval(function() {self._loop();}, gv.MILLIS_PER_CALC);
-        
-        app.playBtn.setDisabled(true);
-        app.pauseBtn.setDisabled(false);
+        var self = this;
+        if (!self.isRunning()) {
+            self._intervalId = setInterval(function() {self._loop();}, gv.MILLIS_PER_CALC);
+            self.setRunning(true);
+        }
     },
     
     stop: function() {
-        var self = this,
-            app = gv.app;
-        clearInterval(self._intervalId);
-        delete self._intervalId;
-        
-        app.pauseBtn.setDisabled(true);
-        app.playBtn.setDisabled(false);
-    },
-    
-    isRunning: function() {
-        return this._intervalId;
+        clearInterval(this._intervalId);
+        delete this._intervalId;
+        this.setRunning(false);
     },
     
     // Main Loop

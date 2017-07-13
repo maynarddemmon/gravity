@@ -62,6 +62,17 @@ gv.Mob = new JS.Class('Mob', myt.Eventable, {
         return this._forces.sort(function(a, b) {return a.force - b.force;});
     },
     
+    calculateGravityPullFrom: function(mob) {
+        var self = this,
+            radiansToMob = Math.atan2(mob.y - self.y, mob.x - self.x),
+            dv = gv.G * mob.mass / self.measureCenterDistanceSquared(mob);
+        return {
+            dv:dv,
+            dvx:Math.cos(radiansToMob) * dv, 
+            dvy:Math.sin(radiansToMob) * dv
+        };
+    },
+    
     getSpeed: function() {
         var vx = this.vx,
             vy = this.vy;
@@ -145,12 +156,26 @@ gv.Mob = new JS.Class('Mob', myt.Eventable, {
         if (speed <= gv.ELASTIC_COLLISION_THRESHOLD) {
             self._resolveElasticCollision(mob);
             
-            // Dock if both are ships and speed is below the safe docking speed.
-            if (selfIsShip && mobIsShip && speed <= gv.DOCKING_THRESHOLD) {
-                if (selfIsMoreMassive) {
-                    mob.dockWith(self, true);
+            // Dock or Land if possible
+            if (selfIsShip || mobIsShip) {
+                if (selfIsShip && mobIsShip) {
+                    // Both ships so dock if speed is below the safe docking speed.
+                    if (speed <= gv.DOCKING_THRESHOLD) {
+                        if (selfIsMoreMassive) {
+                            mob.dockWith(self, true);
+                        } else {
+                            self.dockWith(mob, true);
+                        }
+                    }
                 } else {
-                    self.dockWith(mob, true);
+                    // One ship so land if speed is below the safe landing speed.
+                    if (speed <= gv.LANDING_THRESHOLD) {
+                        if (selfIsShip) {
+                            self.landOn(mob);
+                        } else {
+                            mob.landOn(self);
+                        }
+                    }
                 }
             }
             

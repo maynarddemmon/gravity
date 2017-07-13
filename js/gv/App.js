@@ -45,16 +45,12 @@ gv.App = new JS.Class('App', myt.View, {
         // Controls
         var rightPanel = this._rightPanel = new M.View(self, {bgColor:'#003300'});
         
-        self.playBtn = new GV.CircleButton(rightPanel, {x:5, y:5, text:GV.FA_PLAY, fontSize:'11px'}, [{
-            doActivated: function() {
-                spacetime.start();
-            }
+        self._playBtn = new GV.CircleButton(rightPanel, {x:5, y:5, text:GV.FA_PLAY, fontSize:'11px'}, [{
+            doActivated: function() {spacetime.start();}
         }]);
         
-        self.pauseBtn = new GV.CircleButton(rightPanel, {x:28, y:5, text:GV.FA_PAUSE, fontSize:'11px'}, [{
-            doActivated: function() {
-                spacetime.stop();
-            }
+        self._pauseBtn = new GV.CircleButton(rightPanel, {x:28, y:5, text:GV.FA_PAUSE, fontSize:'11px'}, [{
+            doActivated: function() {spacetime.stop();}
         }]);
         
         self.timescaleSlider = new GV.Slider(rightPanel, {x:51, y:5, width:194, value:0, minValue:0, maxValue:25}, [{
@@ -91,7 +87,14 @@ gv.App = new JS.Class('App', myt.View, {
                     case 25: timeScale = 60 * 60 * 12; txt = '12 hr/sec'; break;
                 }
                 this.setText(txt);
-                self._updateTimeScaling(timeScale);
+                
+                // Update the time scaling using an animation so things 
+                // feel smoother.
+                self.stopActiveAnimators('simulatedSecondsPerTimeSlice');
+                self.animate({
+                    attribute:'simulatedSecondsPerTimeSlice',
+                    to:GV.MILLIS_PER_CALC / 1000 * timeScale, duration:500
+                });
             }
         }]);
         
@@ -99,14 +102,14 @@ gv.App = new JS.Class('App', myt.View, {
         self._shipThrustLabel = new M.Text(rightPanel, {x:5, y:40, fontSize:'10px', textColor:'#00ff00'});
         self._shipStrafeLabel = new M.Text(rightPanel, {x:5, y:52, fontSize:'10px', textColor:'#00ff00'});
         
-        self._dockStatusBtn = new GV.CenteredButton(rightPanel, {x:5, y:64, width:90, focusable:false}, [{
+        self._dockStatusBtn = new GV.CenteredButton(rightPanel, {x:5, y:64, width:110, focusable:false}, [{
             doActivated: function() {
                 var ship = self.getPlayerShip();
                 switch (this.getText()) {
-                    case 'enable':
+                    case 'enable dock':
                         ship.enableAllDocks();
                         break;
-                    case 'disable':
+                    case 'disable dock':
                         ship.disableAllDocks();
                         break;
                     case 'undock':
@@ -115,12 +118,27 @@ gv.App = new JS.Class('App', myt.View, {
                 }
             }
         }]);
-        self._dockStatusLabel = new M.Text(rightPanel, {x:100, y:68, fontSize:'10px', textColor:'#00ff00'});
+        self._dockStatusLabel = new M.Text(rightPanel, {x:120, y:68, fontSize:'10px', textColor:'#00ff00'});
+        
+        self._landingGearStatusBtn = new GV.CenteredButton(rightPanel, {x:5, y:84, width:170, focusable:false}, [{
+            doActivated: function() {
+                var ship = self.getPlayerShip();
+                switch (this.getText()) {
+                    case 'enable landing gear':
+                        ship.enableLandingGear();
+                        break;
+                    case 'disable landing gear':
+                        ship.disableLandingGear();
+                        break;
+                    case 'launch':
+                        ship.launch();
+                        break;
+                }
+            }
+        }]);
+        self._landingGearStatusLabel = new M.Text(rightPanel, {x:180, y:88, fontSize:'10px', textColor:'#00ff00'});
         
         self._updateSize();
-        
-        global.hideSpinner();
-        
         self.focus();
         
         self._uiReady = true;
@@ -128,8 +146,13 @@ gv.App = new JS.Class('App', myt.View, {
         self.updateShipThrustLabel();
         self.updateShipStrafeLabel();
         self.updateShipDockStatus();
+        self.updateShipLandingGearStatus();
+        
+        self.attachTo(spacetime, '_updateRunning', 'running');
         
         spacetime.start();
+        
+        global.hideSpinner();
     },
     
     
@@ -159,10 +182,7 @@ gv.App = new JS.Class('App', myt.View, {
     setHighlightMob: function(v) {
         if (this.highlightMob !== v) {
             this.highlightMob = v;
-            
-            // Force a redraw if spacetime is not updating
-            var GV = gv;
-            if (!GV.spacetime.isRunning()) GV.map.forceUpdate();
+            gv.map.forceUpdate();
         }
     },
     
@@ -174,24 +194,29 @@ gv.App = new JS.Class('App', myt.View, {
     setSelectedMob: function(v) {
         if (this._selectedMob !== v) {
             this._selectedMob = v;
-            
-            // Force a redraw if spacetime is not updating
-            var GV = gv;
-            if (!GV.spacetime.isRunning()) GV.map.forceUpdate();
+            gv.map.forceUpdate();
         }
     },
     getSelectedMob: function() {return this._selectedMob;},
     isSelectedMob: function(mob) {return this._selectedMob === mob;},
     
-    setSimulatedSecondsPerTimeSlice: function(v) {
-        this.simulatedSecondsPerTimeSlice = v;
-    },
+    setSimulatedSecondsPerTimeSlice: function(v) {this.simulatedSecondsPerTimeSlice = v;},
     
     
     // Methods /////////////////////////////////////////////////////////////////
     /** @private */
     _preventContextMenu: function(event) {
         // Do nothing so the context menu event is supressed.
+    },
+    
+    /** @private */
+    _updateRunning: function(event) {
+        var running = event.value,
+            notRunning = !running;
+        this._playBtn.setDisabled(running);
+        this._pauseBtn.setDisabled(notRunning);
+        this._dockStatusBtn.setDisabled(notRunning);
+        this._landingGearStatusBtn.setDisabled(notRunning);
     },
     
     updateScaleLabel: function() {
@@ -204,38 +229,47 @@ gv.App = new JS.Class('App', myt.View, {
             status = ship.getDockStatus(ship.getDock()),
             btn = this._dockStatusBtn;
         switch (status) {
-            case 'enabled':
-                btn.setText('disable');
-                break;
-            case 'disabled':
-                btn.setText('enable');
-                break;
-            case 'docked':
-                btn.setText('undock');
-                break;
+            case 'enabled': btn.setText('disable dock'); break;
+            case 'disabled': btn.setText('enable dock'); break;
+            case 'docked': btn.setText('undock'); break;
         }
-        
         this._dockStatusLabel.setText('status:' + status);
     },
     
+    updateShipLandingGearStatus: function() {
+        var ship = this.getPlayerShip(),
+            status = ship.getLandingGearStatus(),
+            text = '', disable = false;
+            btn = this._landingGearStatusBtn;
+        switch (status) {
+            case 'enabled':
+                text = 'disable landing gear';
+                break;
+            case 'disabled':
+                text = 'enable landing gear';
+                break;
+            case 'landed': 
+                text = 'launch';
+                disable = !ship.canLaunch();
+                break;
+        }
+        btn.setText(text);
+        btn.setDisabled(disable);
+        
+        this._landingGearStatusLabel.setText('status:' + status);
+    },
+    
     updateShipThrustLabel: function() {
-        var ship = this.getPlayerShip();
-        this._shipThrustLabel.setText(
-            'Ship Thrust:' + 
-            (ship ? (ship.thrust / gv.G_FORCE).toFixed(2) + ' Gs' : '-') +
-            ' | ' +
-            (ship ? (ship.thrust).toFixed(2) + ' vel/sec' : '-')
-        );
+        this._shipThrustLabel.setText('Ship Thrust:' + this._formatForce(this.getPlayerShip(), 'thrust'));
     },
     
     updateShipStrafeLabel: function() {
-        var ship = this.getPlayerShip();
-        this._shipStrafeLabel.setText(
-            'Ship Lateral Thrust:' + 
-            (ship ? (ship.strafe / gv.G_FORCE).toFixed(2) + ' Gs' : '-') +
-            ' | ' +
-            (ship ? (ship.strafe).toFixed(2) + ' vel/sec' : '-')
-        );
+        this._shipStrafeLabel.setText('Ship Lateral Thrust:' + this._formatForce(this.getPlayerShip(), 'strafe'));
+    },
+    
+    /** @private */
+    _formatForce: function(ship, propName) {
+        return (ship ? (ship[propName] / gv.G_FORCE).toFixed(2) + ' Gs' : '-') + ' | ' + (ship ? (ship[propName]).toFixed(2) + ' vel/sec' : '-');
     },
     
     doActivationKeyDown: function(key, isRepeat) {
@@ -288,16 +322,6 @@ gv.App = new JS.Class('App', myt.View, {
     
     doActivationKeyUp: function(key) {
         // Do nothing since we don't actually have anything to activate.
-    },
-    
-    /** @private */
-    _updateTimeScaling: function(v) {
-        this.stopActiveAnimators('simulatedSecondsPerTimeSlice');
-        this.animate({
-            attribute:'simulatedSecondsPerTimeSlice',
-            to:gv.MILLIS_PER_CALC / 1000 * v,
-            duration:500
-        });
     },
     
     /** @private */
@@ -561,6 +585,7 @@ gv.App = new JS.Class('App', myt.View, {
             ]
         });
         ship.enableAllDocks();
+        ship.setLandingGear();
         GV.giveMobCircularOrbit(ship, earth, 1.3072e7, 0.01);
         mobs.push(ship);
         
@@ -579,7 +604,7 @@ gv.App = new JS.Class('App', myt.View, {
         ship.setVx(ship.vx -0.5);
         mobs.push(ship);
         
-        
+        // Player Ship
         ship = new GV.Ship({
             playerShip:true, mass:1.0e6, density:250, label:'My Spaceship'
         });

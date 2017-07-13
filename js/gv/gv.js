@@ -54,10 +54,13 @@ gv = (function() {
         REACT_ONLY_THRESHOLD:1.0e21,
         
         // The speed below which elastic collisions occur.
-        ELASTIC_COLLISION_THRESHOLD:10.0,
+        ELASTIC_COLLISION_THRESHOLD:5.0,
         
-        // The speed below which ships may collide with other ships and dock.
+        // The speed below which ships may collide with other ships to dock.
         DOCKING_THRESHOLD:1.0,
+        
+        // The speed below which ships may collide with other mobs to land.
+        LANDING_THRESHOLD:4.0,
         
         FORCE_DISPLAY_THRESHOLD:0.000001,
         

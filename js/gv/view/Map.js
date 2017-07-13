@@ -278,6 +278,7 @@ gv.Map = new JS.Class('Map', myt.View, {
             layer.stroke();
             layer.setGlobalAlpha(0.75);
             self._drawDocks(layer, highlightMob, mobCx, mobCy, mobR);
+            self._drawLandingGear(layer, highlightMob, mobCx, mobCy, mobR);
         }
         
         layer.setGlobalAlpha(0.5);
@@ -292,6 +293,7 @@ gv.Map = new JS.Class('Map', myt.View, {
             layer.stroke();
             layer.setGlobalAlpha(0.75);
             self._drawDocks(layer, selectedMob, mobCx, mobCy, mobR);
+            self._drawLandingGear(layer, selectedMob, mobCx, mobCy, mobR);
         }
         
         //// Draw the center mob highlight /////////////////////////////////////
@@ -338,8 +340,9 @@ gv.Map = new JS.Class('Map', myt.View, {
         layer.stroke();
         layer.fillText(centerMob.label, mobCx - layer.measureText(centerMob.label).width / 2, mobCy - mobR - 6);
         
-        // Draw docks
+        // Draw docks and landing gear
         self._drawDocks(layer, centerMob, mobCx, mobCy, mobR);
+        self._drawLandingGear(layer, centerMob, mobCx, mobCy, mobR);
         
         // Outer ring
         layer.setGlobalAlpha(0.25);
@@ -417,6 +420,27 @@ gv.Map = new JS.Class('Map', myt.View, {
                 layer.setLineWidth(3.5);
                 layer.stroke();
                 layer.setLineWidth(1.5);
+            }
+        }
+    },
+    
+    /** @private */
+    _drawLandingGear: function(layer, mob, mobCx, mobCy, mobR) {
+        if (mob.type === 'ship') {
+            var landingGear = mob.getLandingGear(), 
+                landingGearStatus;
+            if (landingGear) {
+                landingGearStatus = mob.getLandingGearStatus();
+                
+                // Don't draw landing gear if it's disabled
+                if (landingGearStatus !== 'disabled') {
+                    layer.beginPath();
+                    layer.arc(mobCx, mobCy, mobR + 0.5, mob.angle + landingGear.start, mob.angle + landingGear.end);
+                    layer.setStrokeStyle(landingGearStatus === 'landed' ? '#00ff66' : '#ff9900');
+                    layer.setLineWidth(3.5);
+                    layer.stroke();
+                    layer.setLineWidth(1.5);
+                }
             }
         }
     },
@@ -508,7 +532,18 @@ gv.Map = new JS.Class('Map', myt.View, {
         dv = centerMob.measureRelativeVelocity(mob);
         velocityAngle = Math.atan2(dv.y, dv.x);
         speed = Math.sqrt((dv.x * dv.x) + (dv.y * dv.y));
-        velocityColor = speed <= GV.ELASTIC_COLLISION_THRESHOLD ? (speed <= GV.DOCKING_THRESHOLD ? '#00ff00' : '#ff9900') : '#ff0000';
+        
+        if (mob.type === 'ship') {
+            velocityColor = speed <= GV.ELASTIC_COLLISION_THRESHOLD ? 
+                (speed <= GV.DOCKING_THRESHOLD && (centerMob.isAnyDockEnabled() || centerMob.isDockedWith(mob)) ? 
+                    '#00ff00' : '#ff9900') 
+                : '#ff0000';
+        } else {
+            velocityColor = speed <= GV.ELASTIC_COLLISION_THRESHOLD ? 
+                (speed <= GV.LANDING_THRESHOLD && (centerMob.isLandingGearEnabled() || centerMob.isLandedOn(mob)) ? 
+                    '#00ff00' : '#ff9900') 
+                : '#ff0000';
+        }
         
         // Parallel and perpendicular component of velocity relative to the target
         angleDiff = angle - velocityAngle;
@@ -561,7 +596,7 @@ gv.Map = new JS.Class('Map', myt.View, {
             var GV = gv,
                 halfMapSize = this._halfMapSize,
                 mapSize = 2 * halfMapSize,
-                pt, angle;
+                pt, px, py, angle;
             if (GV.circleContainsCircle(x, y, r, halfMapSize, halfMapSize, mapSize)) {
                 // Draw a rect when the circle contains the viewport
                 layer.rect(0, 0, mapSize, mapSize);
@@ -569,11 +604,12 @@ gv.Map = new JS.Class('Map', myt.View, {
                 // Draw large circles as a poly to prevent jitter
                 pt = GV.getClosestPointOnACircleToAPoint(x, y, r, halfMapSize, halfMapSize);
                 angle = Math.atan2(halfMapSize - y, halfMapSize - x) + GV.HALF_PI;
-                x = pt.x;
-                y = pt.y;
-                layer.moveTo(x + 8192 * Math.cos(angle), y + 8192 * Math.sin(angle));
+                px = pt.x;
+                py = pt.y;
+                layer.moveTo(x, y);
+                layer.lineTo(px + 8192 * Math.cos(angle), py + 8192 * Math.sin(angle));
                 angle += Math.PI;
-                layer.lineTo(x + 8192 * Math.cos(angle), y + 8192 * Math.sin(angle));
+                layer.lineTo(px + 8192 * Math.cos(angle), py + 8192 * Math.sin(angle));
             }
         } else {
             layer.circle(x, y, r);
