@@ -299,7 +299,7 @@ gv.Ship = new JS.Class('Ship', gv.Mob, {
             // easier for the user to maneuver.
             var timeScaling = 1 / gv.app.simulatedSecondsPerTimeSlice,
                 va = this.va + (clockwise ? 0.00125 : -0.00125) * timeScaling;
-            this.setVa(this._snapToZero(va, 0.000625));
+            this.setVa(this._snapToZero(va, 0.00125 * timeScaling));
         }
     },
     

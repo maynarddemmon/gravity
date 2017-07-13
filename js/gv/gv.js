@@ -25,9 +25,6 @@
     TODO:
         - Handle destruction of the player ship (respawn?)
         
-        - Formal landed state (no rotation while landed, no landing while rotating)
-        - Landing via specific angles with a higher collision threshold (landing gear on back)
-        
         - Draw scale markers on the map
         - Some kind of rotational thrust indicator
         - Elapsed time indicator.
@@ -41,6 +38,15 @@
         - Show rotation on asteroid, moons, planets, etc.
         
         - Limit time scale based on distance to closest mob?
+        
+        - Tow another mob?
+        
+        - Fuel
+        - Crew (g-force restrictions)
+        - Cargo
+        - Life Support (water, air, food, radiation)
+        - Hull
+        
 */
 gv = (function() {
     var timeSlicesPerSecond = 60,
