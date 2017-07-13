@@ -508,7 +508,7 @@ gv.Map = new JS.Class('Map', myt.View, {
         dv = centerMob.measureRelativeVelocity(mob);
         velocityAngle = Math.atan2(dv.y, dv.x);
         speed = Math.sqrt((dv.x * dv.x) + (dv.y * dv.y));
-        velocityColor = speed <= GV.SAFE_SHIP_COLLISION_THRESHOLD ? '#00ccff' : '#ff6600';
+        velocityColor = speed <= GV.ELASTIC_COLLISION_THRESHOLD ? (speed <= GV.DOCKING_THRESHOLD ? '#00ff00' : '#ff9900') : '#ff0000';
         
         // Parallel and perpendicular component of velocity relative to the target
         angleDiff = angle - velocityAngle;

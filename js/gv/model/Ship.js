@@ -113,7 +113,7 @@ gv.Ship = new JS.Class('Ship', gv.Mob, {
             
             // Verify dock state and angle
             var dock = this.getClosestDockTo(ship);
-            if (this.getDockStatus(dock) === 'enabled') return dock;
+            if (dock && this.getDockStatus(dock) === 'enabled') return dock;
         }
         
         return null;

@@ -28,8 +28,6 @@
         - Formal landed state (no rotation while landed, no landing while rotating)
         - Landing via specific angles with a higher collision threshold (landing gear on back)
         
-        - Collisions with deflection when below a destruction threshold
-        
         - Draw scale markers on the map
         - Some kind of rotational thrust indicator
         - Elapsed time indicator.
@@ -42,7 +40,6 @@
         - Atmospheric drag
         - Show rotation on asteroid, moons, planets, etc.
         
-        - Preserve momentum when docking?
         - Limit time scale based on distance to closest mob?
 */
 gv = (function() {
@@ -52,13 +49,15 @@ gv = (function() {
         // How many millis occur during one time slice.
         MILLIS_PER_CALC:millisPerCalc,
         
-        // React only mass theshold. Below this value mobs only react to
-        // gravity, they don't generate it.
+        // React only mass theshold. Mobs with mass below this value only react
+        // to gravity, they don't generate it.
         REACT_ONLY_THRESHOLD:1.0e21,
         
-        // The speed below which ships may collide with other mobs without
-        // being destroyed.
-        SAFE_SHIP_COLLISION_THRESHOLD:1.0,
+        // The speed below which elastic collisions occur.
+        ELASTIC_COLLISION_THRESHOLD:10.0,
+        
+        // The speed below which ships may collide with other ships and dock.
+        DOCKING_THRESHOLD:1.0,
         
         FORCE_DISPLAY_THRESHOLD:0.000001,
         

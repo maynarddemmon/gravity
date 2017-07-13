@@ -107,7 +107,7 @@ gv.Mob = new JS.Class('Mob', myt.Eventable, {
     },
     
     /** @private */
-    _shiftAwayFrom: function(mob, extraDistance) {
+    /*_shiftAwayFrom: function(mob, extraDistance) {
         var self = this,
             dx = self.x - mob.x,
             dy = self.y - mob.y,
@@ -125,7 +125,7 @@ gv.Mob = new JS.Class('Mob', myt.Eventable, {
             // arbitrarily adjust x.
             self.setX(self.x + targetDistance);
         }
-    },
+    },*/
     
     resolveCollision: function(mob) {
         var self = this,
@@ -138,69 +138,128 @@ gv.Mob = new JS.Class('Mob', myt.Eventable, {
             massRatioB = massB / combinedMass,
             combinedVx = self.vx * massRatioA + mob.vx * massRatioB,
             combinedVy = self.vy * massRatioA + mob.vy * massRatioB,
-            speed,
+            speed = self.measureRelativeSpeed(mob),
             selfIsShip = self.isType('ship'),
             mobIsShip = mob.isType('ship');
         
-        // Check ship collision first
-        if (selfIsShip || mobIsShip) {
-            speed = self.measureRelativeSpeed(mob);
+        if (speed <= gv.ELASTIC_COLLISION_THRESHOLD) {
+            self._resolveElasticCollision(mob);
             
-            if (speed <= gv.SAFE_SHIP_COLLISION_THRESHOLD) {
-                console.log('SAFE COLLISION');
-                
-                // Lock together by giving each mob the same velocity.
-                self.setVx(combinedVx);
-                self.setVy(combinedVy);
-                mob.setVx(combinedVx);
-                mob.setVy(combinedVy);
-                
-                // Push back the less massive body a tiny bit so they won't
-                // immediately recollide
+            // Dock if both are ships and speed is below the safe docking speed.
+            if (selfIsShip && mobIsShip && speed <= gv.DOCKING_THRESHOLD) {
                 if (selfIsMoreMassive) {
-                    mob._shiftAwayFrom(self, 0.1);
+                    mob.dockWith(self, true);
                 } else {
-                    self._shiftAwayFrom(mob, 0.1);
+                    self.dockWith(mob, true);
                 }
-                
-                // Dock if both are ships
-                if (selfIsShip && mobIsShip) {
-                    if (selfIsMoreMassive) {
-                        mob.dockWith(self, true);
-                    } else {
-                        self.dockWith(mob, true);
-                    }
-                }
-                
-                return;
             }
+            
+            return null;
+        } else {
+            // Remove both mobs since they collided
+            spacetime.removeMob(self);
+            spacetime.removeMob(mob);
+            
+            // Make a new mob
+            var mobKlass = selfIsMoreMassive ? self.klass : mob.klass,
+                newMob = spacetime.addMob(new mobKlass({
+                    mass:combinedMass,
+                    density:self.density * massRatioA + mob.density * massRatioB,
+                    x:self.x * massRatioA + mob.x * massRatioB,
+                    y:self.y * massRatioA + mob.y * massRatioB,
+                    vx:combinedVx,
+                    vy:combinedVy,
+                    mapCenter:self.isMapCenter() || mob.isMapCenter(),
+                    label:selfIsMoreMassive ? self.label : mob.label,
+                    type:selfIsMoreMassive ? self.type : mob.type
+                }));
+            
+            // Finally destroy both mobs now that we're done using information from them.
+            self.destroy();
+            mob.destroy();
+            
+            return newMob;
         }
+    },
+    
+    /** @private */
+    _resolveElasticCollision: function(mobB) {
+        // Roll back position to time of collision
+        var mobA = this,
+            
+            xA = mobA.x,
+            yA = mobA.y,
+            vxA = mobA.vx,
+            vyA = mobA.vy,
+            
+            xB = mobB.x,
+            yB = mobB.y,
+            vxB = mobB.vx,
+            vyB = mobB.vy,
+            
+            collisionDistance = mobA.radius + mobB.radius,
+            curXDiff = xA - xB,
+            curYDiff = yA - yB,
+            curVxDiff = vxA - vxB,
+            curVyDiff = vyA - vyB,
+            c = curXDiff * curXDiff + curYDiff * curYDiff - collisionDistance * collisionDistance;
+            b = (2 * curVxDiff * curXDiff) + (2 * curVyDiff * curYDiff);
+            a = curVxDiff * curVxDiff + curVyDiff * curVyDiff,
+            twoA = 2 * a,
+            discriminant = Math.sqrt(b * b - 4 * a * c),
+            
+            // We only care about the time most in the past
+            t = Math.min((-b + discriminant) / twoA, (-b - discriminant) / twoA);
         
-        console.log('COLLISION!!!', mob.label, self.label);
+        mobA.x += vxA * t;
+        mobA.y += vyA * t;
         
-        // Remove both mobs since they collided
-        spacetime.removeMob(self);
-        spacetime.removeMob(mob);
+        mobB.x += vxB * t;
+        mobB.y += vyB * t;
         
-        // Make a new mob
-        var mobKlass = selfIsMoreMassive ? self.klass : mob.klass,
-            newMob = spacetime.addMob(new mobKlass({
-                mass:combinedMass,
-                density:self.density * massRatioA + mob.density * massRatioB,
-                x:self.x * massRatioA + mob.x * massRatioB,
-                y:self.y * massRatioA + mob.y * massRatioB,
-                vx:combinedVx,
-                vy:combinedVy,
-                mapCenter:self.isMapCenter() || mob.isMapCenter(),
-                label:selfIsMoreMassive ? self.label : mob.label,
-                type:selfIsMoreMassive ? self.type : mob.type
-            }));
+        // Resolve collision conserving momentum and energy
+        var mA = mobA.mass,
+            mB = mobB.mass,
+            totalMass = mA + mB,
+            
+            speedA = mobA.getSpeed(),
+            speedB = mobB.getSpeed(),
+            
+            dirA = Math.atan2(mobA.vy, mobA.vx),
+            dirB = Math.atan2(mobB.vy, mobB.vx),
+            dirCol = Math.atan2(mobA.y - mobB.y, mobA.x - mobB.x),
+            dirTCol = dirCol + gv.HALF_PI,
+            dirACol = dirA - dirCol,
+            dirBCol = dirB - dirCol,
+            dirColCos = Math.cos(dirCol),
+            dirColSin = Math.sin(dirCol),
+            dirTColCos = Math.cos(dirTCol),
+            dirTColSin = Math.sin(dirTCol),
+            dirAColCos = Math.cos(dirACol),
+            dirAColSin = Math.sin(dirACol),
+            dirBColCos = Math.cos(dirBCol),
+            dirBColSin = Math.sin(dirBCol),
+            
+            fA = ((speedA * dirAColCos * (mA - mB)) + (2 * mB * speedB * dirBColCos)) / totalMass,
+            f2A = speedA * dirAColSin,
+            
+            fB = ((speedB * dirBColCos * (mB - mA)) + (2 * mA * speedA * dirAColCos)) / totalMass,
+            f2B = speedB * dirBColSin;
         
-        // Finally destroy both mobs now that we're done using information from them.
-        self.destroy();
-        mob.destroy();
+        mobA.vx = (dirColCos * fA) + f2A * dirTColCos;
+        mobA.vy = (dirColSin * fA) + f2A * dirTColSin;
         
-        return newMob;
+        mobB.vx = (dirColCos * fB) + f2B * dirTColCos;
+        mobB.vy = (dirColSin * fB) + f2B * dirTColSin;
+        
+        // Apply new velocity for the rolled back time
+        t = -t;
+        
+        mobA.x += mobA.vx * t;
+        mobA.y += mobA.vy * t;
+        
+        mobB.x += mobB.vx * t;
+        mobB.y += mobB.vy * t;
     },
     
     resetForces: function() {

@@ -553,9 +553,11 @@ gv.App = new JS.Class('App', myt.View, {
             mass:419.6e6, density:200, label:'iss',
             docks:[
                 {start:-PI/24,   end:-PI/24 + DOCK_WIDTH},
-                {start:11*PI/24, end:11*PI/24 + DOCK_WIDTH},
+                {start:7*PI/24, end:7*PI/24 + DOCK_WIDTH},
+                {start:15*PI/24, end:15*PI/24 + DOCK_WIDTH},
                 {start:23*PI/24, end:23*PI/24 + DOCK_WIDTH},
-                {start:35*PI/24, end:35*PI/24 + DOCK_WIDTH}
+                {start:31*PI/24, end:31*PI/24 + DOCK_WIDTH},
+                {start:39*PI/24, end:39*PI/24 + DOCK_WIDTH}
             ]
         });
         ship.enableAllDocks();
