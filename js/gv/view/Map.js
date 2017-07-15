@@ -4,13 +4,13 @@
         None
     
     Attributes:
-        inverseDistanceScale
+        None
     
     Private Attributes:
-        _wheelX
+        _centerMob
         _wheelY
-        _wheelSpeed
-        _distanceScale
+        _pixelsPerMeter
+        _metersPerPixel
         _halfMapSize
 */
 gv.Map = new JS.Class('Map', myt.View, {
@@ -19,16 +19,10 @@ gv.Map = new JS.Class('Map', myt.View, {
         var self = this,
             M = myt;
         
-        self._MAX_SCALE_EXPONENT = 32.5;
-        
-        self._wheelSpeed = 100;
-        self._wheelX = 0;
-        self._wheelY = attrs.scaleValue * self._wheelSpeed;
-        self._distanceScale = self.inverseDistanceScale = 1;
         self._halfMapSize = 0;
         
+        if (attrs.distanceScale == null) attrs.distanceScale = -70.05;
         attrs.bgColor = '#000000';
-        delete attrs.scaleValue;
         
         self.callSuper(parent, attrs);
         
@@ -39,8 +33,6 @@ gv.Map = new JS.Class('Map', myt.View, {
         self.attachToDom(self, '_handleMove', 'mousemove');
         self.attachToDom(self, '_handleClick', 'click');
         self.attachTo(M.global.idle, '_update', 'idle');
-        
-        self._updateDistanceScale();
     },
     
     
@@ -48,6 +40,11 @@ gv.Map = new JS.Class('Map', myt.View, {
     setCenterMob: function(v) {
         if (v !== this._centerMob) {
             this._centerMob = v;
+            
+            // The center mob should never be selected.
+            var app = gv.app;
+            if (app.isSelectedMob(v)) app.setSelectedMob();
+            
             if (this.inited) this.forceUpdate();
         }
     },
@@ -56,7 +53,7 @@ gv.Map = new JS.Class('Map', myt.View, {
     setWidth:function(v, supressEvent) {
         // Ensure an even integer value since things looks better this way.
         v = Math.round(v);
-        if (v % 2 === 1) v += 1;
+        if (v % 2 === 1) v -= 1;
         
         this.callSuper(v, supressEvent);
         
@@ -78,20 +75,38 @@ gv.Map = new JS.Class('Map', myt.View, {
         }
     },
     
+    setDistanceScale: function(distanceScale) {
+        var self = this,
+            wheelY = self._wheelY = Math.min(3250, Math.max(-230.25, distanceScale)),
+            metersPerPixel = Math.exp(wheelY / 100);
+        
+        // Set distance scale
+        if (metersPerPixel !== self._metersPerPixel) {
+            self._metersPerPixel = metersPerPixel;
+            self._pixelsPerMeter = 1 / metersPerPixel;
+            
+            if (self.inited) self.forceUpdate();
+        }
+        
+        gv.app.updateScaleLabel();
+    },
+    getMetersPerPixel: function() {return this._metersPerPixel;},
+    
     
     // Methods /////////////////////////////////////////////////////////////////
     /** @private */
     _handleClick: function(event) {
         var app = gv.app,
-            highlightMob = app.highlightMob;
+            highlightMob = app.getHighlightMob();
         if (highlightMob) {
             if (myt.global.keys.isAltKeyDown()) {
+                // Alt-click to recenter the map on the highlighted mob.
                 this.setCenterMob(highlightMob);
-                if (app.isSelectedMob(highlightMob)) app.setSelectedMob();
             } else {
+                // Click on to select/deselect the highlighted mob.
                 if (app.isSelectedMob(highlightMob)) {
                     app.setSelectedMob();
-                } else if (this.getCenterMob() !== highlightMob) {
+                } else {
                     app.setSelectedMob(highlightMob);
                 }
             }
@@ -100,41 +115,25 @@ gv.Map = new JS.Class('Map', myt.View, {
     
     /** @private */
     _handleMove: function(event) {
+        // Highlight the nearest mob to the mouse except for the center mob
+        // since it should never be highlighted.
         var self = this,
             pos = myt.MouseObservable.getMouseFromEventRelativeToView(event, self._mobsLayer),
             centerMob = self.getCenterMob(),
-            inverseScale = self.inverseDistanceScale,
+            metersPerPixel = self._metersPerPixel,
             halfMapSize = self._halfMapSize;
         gv.app.setHighlightMob(gv.spacetime.getNearestMob(
             {
                 // Converts a position in pixels into a position in spacetime meters.
-                x:inverseScale * (pos.x - halfMapSize) + centerMob.x, 
-                y:inverseScale * (pos.y - halfMapSize) + centerMob.y
+                x:(pos.x - halfMapSize) * metersPerPixel + centerMob.x, 
+                y:(pos.y - halfMapSize) * metersPerPixel + centerMob.y
             }, centerMob
         ));
     },
     
     /** @private */
     _handleWheel: function(event) {
-        // Limit wheel Y to the allowed exponential values
-        var self = this;
-        self._wheelY = Math.min(Math.max(-230, self._wheelY + event.value.deltaY), self._MAX_SCALE_EXPONENT * self._wheelSpeed);
-        self._updateDistanceScale();
-    },
-    
-    /** @private */
-    _updateDistanceScale: function() {
-        var newScale = Math.exp(this._wheelY / this._wheelSpeed),
-            scale = 1 / newScale;
-        
-        // Set distance scale
-        if (scale !== this._distanceScale) {
-            this._distanceScale = scale;
-            this.inverseDistanceScale = newScale;
-            if (this.inited) this.forceUpdate();
-        }
-        
-        gv.app.updateScaleLabel();
+        this.setDistanceScale(this._wheelY + event.value.deltaY);
     },
     
     /** Redraw when spacetime is running.
@@ -153,9 +152,12 @@ gv.Map = new JS.Class('Map', myt.View, {
         @private */
     _redraw: function() {
         var self = this,
-            halfMapSize = self._halfMapSize;
+            halfMapSize = self._halfMapSize,
+            centerMob = self.getCenterMob();
         
         if (halfMapSize <= 0) return;
+        
+        if (!centerMob) return;
         
         var GV = gv,
             app = GV.app,
@@ -166,14 +168,13 @@ gv.Map = new JS.Class('Map', myt.View, {
             mobs = GV.spacetime.getAllMobs(),
             i = mobs.length,
             mob,
-            centerMob = self.getCenterMob(),
-            highlightMob = app.highlightMob,
+            highlightMob = app.getHighlightMob(),
             selectedMob = app.getSelectedMob(),
             
             drawSelected = selectedMob && selectedMob !== centerMob,
             drawHighlight = highlightMob && highlightMob !== centerMob && highlightMob !== selectedMob,
             
-            scale = self._distanceScale,
+            scale = self._pixelsPerMeter,
             offsetX = halfMapSize - (centerMob ? centerMob.x : 0) * scale,
             offsetY = halfMapSize - (centerMob ? centerMob.y : 0) * scale,
             

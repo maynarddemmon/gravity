@@ -4,7 +4,13 @@
         None
     
     Attributes:
-        None
+        simulatedSecondsPerTimeSlice
+        
+    Private Attributes:
+        _highlightMob
+        _playerShip
+        _selectedMob
+        _spawnMob
 */
 gv.App = new JS.Class('App', myt.View, {
     include: [myt.SizeToWindow, myt.KeyActivation],
@@ -12,38 +18,36 @@ gv.App = new JS.Class('App', myt.View, {
     
     // Life Cycle //////////////////////////////////////////////////////////////
     initNode: function(parent, attrs) {
-        // How many seconds occur in the simulation during one time slice. Will
-        // be updated when the time slider gets set via this.updateTimeScaling.
-        this.simulatedSecondsPerTimeSlice = null;
-        
         var self = this,
             M = myt,
             g = myt.global,
-            GV = gv;
+            GV = gv,
+            T = GV.Text;
+        
+        // How many seconds occur in the simulation during one time slice. Will
+        // be updated when the time slider gets set via this.updateTimeScaling.
+        self.simulatedSecondsPerTimeSlice = null;
         
         attrs.minWidth = attrs.minHeight = 600;
-        
         attrs.focusable = true;
         attrs.focusEmbellishment = false;
         attrs.activationKeys = [13,32,37,38,39,40,88,90,187,189];
         
         self.callSuper(parent, attrs);
+        
         GV.app = self;
         
         self.attachToDom(g.mouse, '_preventContextMenu', 'contextmenu', true);
         
         // Create Spacetime
-        var spacetime = GV.spacetime = new GV.Spacetime();
+        var spacetime = GV.spacetime = self.spacetime = new GV.Spacetime();
         self._buildSolarSystem(spacetime);
         
         // Build UI
-        GV.map = self.map = new GV.Map(self, {
-            scaleValue:-0.5, // 14.2 earth/moon
-            centerMob:spacetime.getMobByLabel('My Spaceship')
-        });
+        GV.map = self.map = new GV.Map(self);
         
         // Controls
-        var rightPanel = this._rightPanel = new M.View(self, {bgColor:'#003300'});
+        var rightPanel = this._rightPanel = new M.View(self, {bgColor:'#003300', overflow:'auto'});
         
         self._playBtn = new GV.CircleButton(rightPanel, {x:5, y:5, text:GV.FA_PLAY, fontSize:'11px'}, [{
             doActivated: function() {spacetime.start();}
@@ -95,62 +99,67 @@ gv.App = new JS.Class('App', myt.View, {
                     attribute:'simulatedSecondsPerTimeSlice',
                     to:GV.MILLIS_PER_CALC / 1000 * timeScale, duration:500
                 });
-            }
+            },
+            speedUp: function() {this.setValue(this.getValue() + 1);},
+            slowDown: function() {this.setValue(this.getValue() - 1);},
+            setToRealtime: function() {this.setValue(0);}
         }]);
         
-        self._scaleLabel = new M.Text(rightPanel, {x:5, y:28, fontSize:'10px', textColor:'#00ff00'});
-        self._shipThrustLabel = new M.Text(rightPanel, {x:5, y:40, fontSize:'10px', textColor:'#00ff00'});
-        self._shipStrafeLabel = new M.Text(rightPanel, {x:5, y:52, fontSize:'10px', textColor:'#00ff00'});
+        self._scaleLabel = new T(rightPanel, {x:5, y:28});
+        self._shipThrustLabel = new T(rightPanel, {x:5, y:40});
+        self._shipStrafeLabel = new T(rightPanel, {x:5, y:52});
         
         self._dockStatusBtn = new GV.CenteredButton(rightPanel, {x:5, y:64, width:110, focusable:false}, [{
             doActivated: function() {
                 var ship = self.getPlayerShip();
-                switch (this.getText()) {
-                    case 'enable dock':
-                        ship.enableAllDocks();
-                        break;
-                    case 'disable dock':
-                        ship.disableAllDocks();
-                        break;
-                    case 'undock':
-                        ship.undockFromAll();
-                        break;
+                if (ship) {
+                    switch (this.getText()) {
+                        case 'enable dock':
+                            ship.enableAllDocks();
+                            break;
+                        case 'disable dock':
+                            ship.disableAllDocks();
+                            break;
+                        case 'undock':
+                            ship.undockFromAll();
+                            break;
+                    }
                 }
             }
         }]);
-        self._dockStatusLabel = new M.Text(rightPanel, {x:120, y:68, fontSize:'10px', textColor:'#00ff00'});
+        self._dockStatusLabel = new T(rightPanel, {x:120, y:68});
         
         self._landingGearStatusBtn = new GV.CenteredButton(rightPanel, {x:5, y:84, width:170, focusable:false}, [{
             doActivated: function() {
                 var ship = self.getPlayerShip();
-                switch (this.getText()) {
-                    case 'enable landing gear':
-                        ship.enableLandingGear();
-                        break;
-                    case 'disable landing gear':
-                        ship.disableLandingGear();
-                        break;
-                    case 'launch':
-                        ship.launch();
-                        break;
+                if (ship) {
+                    switch (this.getText()) {
+                        case 'enable landing gear':
+                            ship.enableLandingGear();
+                            break;
+                        case 'disable landing gear':
+                            ship.disableLandingGear();
+                            break;
+                        case 'launch':
+                            ship.launch();
+                            break;
+                    }
                 }
             }
         }]);
-        self._landingGearStatusLabel = new M.Text(rightPanel, {x:180, y:88, fontSize:'10px', textColor:'#00ff00'});
+        self._landingGearStatusLabel = new T(rightPanel, {x:180, y:88});
         
         self._updateSize();
         self.focus();
         
         self._uiReady = true;
         self.updateScaleLabel();
-        self.updateShipThrustLabel();
-        self.updateShipStrafeLabel();
-        self.updateShipDockStatus();
-        self.updateShipLandingGearStatus();
         
         self.attachTo(spacetime, '_updateRunning', 'running');
         
         spacetime.start();
+        
+        self.respawn();
         
         global.hideSpinner();
     },
@@ -169,32 +178,40 @@ gv.App = new JS.Class('App', myt.View, {
     
     /** @private */
     _updateSize: function() {
+        // Map is always a square
         var self = this,
             rightPanel = self._rightPanel,
             size = Math.min(self.width, self.height);
         self.map.setWidth(size);
         
         rightPanel.setX(size);
-        rightPanel.setWidth(Math.max(250, self.width - size));
+        rightPanel.setWidth(Math.max(50, self.width - size));
         rightPanel.setHeight(size);
     },
     
     setHighlightMob: function(v) {
-        if (this.highlightMob !== v) {
-            this.highlightMob = v;
-            gv.map.forceUpdate();
+        if (this._highlightMob !== v) {
+            this._highlightMob = v;
+            this.map.forceUpdate();
         }
     },
+    getHighlightMob: function() {return this._highlightMob;},
+    isHighlightMob: function(mob) {return this._highlightMob === mob;},
     
     setPlayerShip: function(v) {
         if (v !== this._playerShip) this._playerShip = v;
     },
     getPlayerShip: function() {return this._playerShip;},
     
+    setSpawnMob: function(v) {
+        if (v !== this._spawnMob) this._spawnMob = v;
+    },
+    getSpawnMob: function() {return this._spawnMob;},
+    
     setSelectedMob: function(v) {
         if (this._selectedMob !== v) {
             this._selectedMob = v;
-            gv.map.forceUpdate();
+            this.map.forceUpdate();
         }
     },
     getSelectedMob: function() {return this._selectedMob;},
@@ -221,42 +238,46 @@ gv.App = new JS.Class('App', myt.View, {
     
     updateScaleLabel: function() {
         if (!this._uiReady) return;
-        this._scaleLabel.setText('Scale:' + gv.formatMeters(this.map.inverseDistanceScale) + '/pixel');
+        this._scaleLabel.setText('Scale:' + gv.formatMeters(this.map.getMetersPerPixel()) + '/pixel');
     },
     
     updateShipDockStatus: function() {
-        var ship = this.getPlayerShip(),
-            status = ship.getDockStatus(ship.getDock()),
-            btn = this._dockStatusBtn;
-        switch (status) {
-            case 'enabled': btn.setText('disable dock'); break;
-            case 'disabled': btn.setText('enable dock'); break;
-            case 'docked': btn.setText('undock'); break;
+        var ship = this.getPlayerShip();
+        if (ship) {
+            var status = ship.getDockStatus(ship.getDock()),
+                btn = this._dockStatusBtn;
+            switch (status) {
+                case 'enabled': btn.setText('disable dock'); break;
+                case 'disabled': btn.setText('enable dock'); break;
+                case 'docked': btn.setText('undock'); break;
+            }
+            this._dockStatusLabel.setText('status:' + status);
         }
-        this._dockStatusLabel.setText('status:' + status);
     },
     
     updateShipLandingGearStatus: function() {
-        var ship = this.getPlayerShip(),
-            status = ship.getLandingGearStatus(),
-            text = '', disable = false;
-            btn = this._landingGearStatusBtn;
-        switch (status) {
-            case 'enabled':
-                text = 'disable landing gear';
-                break;
-            case 'disabled':
-                text = 'enable landing gear';
-                break;
-            case 'landed': 
-                text = 'launch';
-                disable = !ship.canLaunch();
-                break;
+        var ship = this.getPlayerShip();
+        if (ship) {
+            var status = ship.getLandingGearStatus(),
+                text = '', disable = false;
+                btn = this._landingGearStatusBtn;
+            switch (status) {
+                case 'enabled':
+                    text = 'disable landing gear';
+                    break;
+                case 'disabled':
+                    text = 'enable landing gear';
+                    break;
+                case 'landed': 
+                    text = 'launch';
+                    disable = !ship.canLaunch();
+                    break;
+            }
+            btn.setText(text);
+            btn.setDisabled(disable);
+            
+            this._landingGearStatusLabel.setText('status:' + status);
         }
-        btn.setText(text);
-        btn.setDisabled(disable);
-        
-        this._landingGearStatusLabel.setText('status:' + status);
     },
     
     updateShipThrustLabel: function() {
@@ -272,56 +293,63 @@ gv.App = new JS.Class('App', myt.View, {
         return (ship ? (ship[propName] / gv.G_FORCE).toFixed(2) + ' Gs' : '-') + ' | ' + (ship ? (ship[propName]).toFixed(2) + ' vel/sec' : '-');
     },
     
+    /** @overrides KeyActivation */
     doActivationKeyDown: function(key, isRepeat) {
-        var spacetime = gv.spacetime,
-            map = gv.map,
-            ship = this.getPlayerShip();
+        var self = this,
+            ship = self.getPlayerShip();
+        
+        // Handle commands that don't require a player ship.
+        switch (key) {
+            case 32: // Spacebar
+                self.spacetime.toggleRunning(); break;
+            case 187: // Equals Key (+)
+                self.timescaleSlider.speedUp(); break;
+            case 189: // Dash Key (-)
+                self.timescaleSlider.slowDown(); break;
+        }
+        
+        // Handle commads that require a player ship.
         if (ship) {
             switch (key) {
                 case 13: // Enter
-                    // Recenter on user's ship
-                    if (map.getCenterMob() !== ship) map.setCenterMob(ship);
-                    break;
-                case 32: // Spacebar
-                    // Pause/Play spacetime
-                    if (spacetime.isRunning()) {
-                        spacetime.stop();
-                    } else {
-                        spacetime.start();
-                    }
-                    break;
+                    self.map.setCenterMob(ship); break;
                 case 37: // Left
-                    ship.rotateLeft();
-                    break;
+                    ship.rotateLeft(); break;
                 case 38: // Up
-                    ship.increaseThrust();
-                    break;
+                    ship.increaseThrust(); break;
                 case 39: // Right
-                    ship.rotateRight();
-                    break;
+                    ship.rotateRight(); break;
                 case 40: // Down
-                    ship.decreaseThrust();
-                    break;
+                    ship.decreaseThrust(); break;
                 case 88: // X
-                    ship.strafeRight();
-                    break;
+                    ship.strafeRight(); break;
                 case 90: // Z
-                    ship.strafeLeft();
-                    break;
-                case 187: // Equals Key (+)
-                    // Slow down spacetime
-                    this.timescaleSlider.setValue(this.timescaleSlider.getValue() + 1);
-                    break;
-                case 189: // Dash Key (-)
-                    // Speed up spacetime
-                    this.timescaleSlider.setValue(this.timescaleSlider.getValue() - 1);
-                    break;
+                    ship.strafeLeft(); break;
             }
         }
     },
     
+    /** @overrides KeyActivation */
     doActivationKeyUp: function(key) {
         // Do nothing since we don't actually have anything to activate.
+    },
+    
+    respawn: function(oldShip) {
+        var self = this,
+            GV = gv,
+            spawnMob = self.getSpawnMob(),
+            newShip = new GV.Ship({playerShip:true, mass:1.0e6, density:250, label:'My Spaceship'});
+        GV.giveMobRelativeMotion(newShip, spawnMob, -(50 + newShip.radius + spawnMob.radius));
+        GV.spacetime.addMob(newShip);
+        
+        newShip.setMapCenter(true);
+        GV.map.setDistanceScale(-70.05);
+        self.timescaleSlider.setToRealtime();
+        
+        self.updateShipThrustLabel();
+        self.updateShipStrafeLabel();
+        self.updateShipDockStatus();
+        self.updateShipLandingGearStatus();
     },
     
     /** @private */
@@ -574,6 +602,7 @@ gv.App = new JS.Class('App', myt.View, {
         mobs.push(ship);
         
         ship = new GV.Ship({
+            spawnMob:true,
             mass:419.6e6, density:200, label:'iss',
             docks:[
                 {start:-PI/24,   end:-PI/24 + DOCK_WIDTH},
@@ -602,13 +631,6 @@ gv.App = new JS.Class('App', myt.View, {
         ship.enableAllDocks();
         GV.giveMobCircularOrbit(ship, earth, 1.30722e7, 0.0100006);
         ship.setVx(ship.vx -0.5);
-        mobs.push(ship);
-        
-        // Player Ship
-        ship = new GV.Ship({
-            playerShip:true, mass:1.0e6, density:250, label:'My Spaceship'
-        });
-        GV.giveMobCircularOrbit(ship, earth, 1.30718e7, 0.01);
         mobs.push(ship);
         
         spacetime.bulkAddMob(mobs);

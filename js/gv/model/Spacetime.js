@@ -152,6 +152,14 @@ gv.Spacetime = new JS.Class('Spacetime', myt.Eventable, {
         this.setRunning(false);
     },
     
+    toggleRunning: function() {
+        if (this.isRunning()) {
+            this.stop();
+        } else {
+            this.start();
+        }
+    },
+    
     // Main Loop
     /** @private */
     _loop: function() {

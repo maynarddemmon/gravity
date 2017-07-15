@@ -28,6 +28,16 @@ gv.Mob = new JS.Class('Mob', myt.Eventable, {
         if (mapCenter) self.setMapCenter(mapCenter);
     },
     
+    destroy: function() {
+        // Clean up references to this mob
+        var self = this,
+            app = gv.app;
+        if (app.isHighlightMob(self)) app.setHighlightMob();
+        if (app.isSelectedMob(self)) app.setSelectedMob();
+        
+        self.callSuper();
+    },
+    
     
     // Accessors ///////////////////////////////////////////////////////////////
     getId: function() {return this._id;},
@@ -52,6 +62,9 @@ gv.Mob = new JS.Class('Mob', myt.Eventable, {
     setVx: function(vx) {this.vx = vx;},
     setVy: function(vy) {this.vy = vy;},
     setVa: function(va) {this.va = va;},
+    
+    setSpawnMob: function(v) {if (v) gv.app.setSpawnMob(this);},
+    isSpawnMob: function() {return gv.app.getSpawnMob() === this;},
     
     
     // Methods /////////////////////////////////////////////////////////////////
@@ -186,6 +199,7 @@ gv.Mob = new JS.Class('Mob', myt.Eventable, {
             spacetime.removeMob(mob);
             
             // Make a new mob
+            // FIXME: Why not just update the properties of the more massive mob?
             var mobKlass = selfIsMoreMassive ? self.klass : mob.klass,
                 newMob = spacetime.addMob(new mobKlass({
                     mass:combinedMass,
@@ -195,9 +209,22 @@ gv.Mob = new JS.Class('Mob', myt.Eventable, {
                     vx:combinedVx,
                     vy:combinedVy,
                     mapCenter:self.isMapCenter() || mob.isMapCenter(),
+                    spawnMob:self.isSpawnMob() || mob.isSpawnMob(),
                     label:selfIsMoreMassive ? self.label : mob.label,
-                    type:selfIsMoreMassive ? self.type : mob.type
+                    type:selfIsMoreMassive ? self.type : mob.type,
                 }));
+            
+            if (selfIsMoreMassive) {
+                if (selfIsShip) {
+                    newMob.setDocks(self.getDocks());
+                    newMob.setLandingGear(self.getLandingGear());
+                }
+            } else if (mobIsShip) {
+                if (mobIsShip) {
+                    newMob.setDocks(mob.getDocks());
+                    newMob.setLandingGear(mob.getLandingGear());
+                }
+            }
             
             // Finally destroy both mobs now that we're done using information from them.
             self.destroy();

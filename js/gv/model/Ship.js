@@ -9,18 +9,29 @@
 gv.Ship = new JS.Class('Ship', gv.Mob, {
     // Life Cycle //////////////////////////////////////////////////////////////
     init: function(attrs) {
-        this.rotationLevel = this.thrust = this.strafe = 0;
+        var self = this;
         
+        self.rotationLevel = self.thrust = self.strafe = 0;
+        
+        attrs.type = 'ship';
         if (attrs.docks == null) {
             var start = -Math.PI / 12;
             attrs.docks = [{start:start, end:-start}];
         }
-        
         if (attrs.landingGear == null) attrs.landingGear = {start:5/6*Math.PI, end:7/6*Math.PI};
         
-        attrs.type = 'ship';
+        self.callSuper(attrs);
+    },
+    
+    destroy: function() {
+        var self = this,
+            app = gv.app;
+        if (self.isPlayerShip()) {
+            app.setPlayerShip();
+            app.respawn(self);
+        }
         
-        this.callSuper(attrs);
+        self.callSuper();
     },
     
     

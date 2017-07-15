@@ -144,6 +144,13 @@ gv = (function() {
             satelliteMob.setVy(centerMob.vy + Math.sin(tangentAngle) * speed * reverse);
         },
         
+        giveMobRelativeMotion: function(targetMob, sourceMob, x, y, vx, vy) {
+            targetMob.setX(sourceMob.x + (x || 0));
+            targetMob.setY(sourceMob.y + (y || 0));
+            targetMob.setVx(sourceMob.vx + (vx || 0));
+            targetMob.setVy(sourceMob.vy + (vy || 0));
+        },
+        
         getClosestPointOnACircleToAPoint: function(cx, cy, r, px, py) {
             var xDiff = px - cx,
                 yDiff = py - cy,
@@ -254,6 +261,15 @@ gv = (function() {
     gv.FA_PLAY = func(['play']);
     gv.FA_PAUSE= func(['pause']);
 })(gv);
+
+gv.Text = new JS.Class('Text', myt.Text, {
+    // Life Cycle //////////////////////////////////////////////////////////////
+    initNode: function(parent, attrs) {
+        attrs.fontSize = '10px';
+        attrs.textColor = '#00ff00';
+        this.callSuper(parent, attrs);
+    }
+});
 
 gv.Button = new JS.Class('Button', myt.SimpleButton, {
     // Life Cycle //////////////////////////////////////////////////////////////
