@@ -262,7 +262,7 @@ gv.Map = new JS.Class('Map', myt.View, {
         canvasMobsLen = canvasMobs.length;
         while (canvasMobsLen) {
             mobInfo = canvasMobs[--canvasMobsLen];
-            self._drawCircle(layer, mobInfo[0], mobInfo[1], mobInfo[3]);
+            self._drawCircle(layer, mobInfo[0], mobInfo[1], mobInfo[3], true);
             layer.setFillStyle(self._convertColorToHex(mobInfo[4]));
             layer.fill();
         }
@@ -274,7 +274,7 @@ gv.Map = new JS.Class('Map', myt.View, {
             mobR = Math.max(highlightMob.radius * scale, 8);
             mobCx = offsetX + highlightMob.x * scale;
             mobCy = offsetY + highlightMob.y * scale;
-            self._drawCircle(layer, mobCx, mobCy, mobR);
+            self._drawCircle(layer, mobCx, mobCy, mobR, false);
             layer.setStrokeStyle('#00ff00');
             layer.stroke();
             layer.setGlobalAlpha(0.75);
@@ -289,7 +289,7 @@ gv.Map = new JS.Class('Map', myt.View, {
             mobR = Math.max(selectedMob.radius * scale, 8);
             mobCx = offsetX + selectedMob.x * scale;
             mobCy = offsetY + selectedMob.y * scale;
-            self._drawCircle(layer, mobCx, mobCy, mobR);
+            self._drawCircle(layer, mobCx, mobCy, mobR, false);
             layer.setStrokeStyle('#00ff00');
             layer.stroke();
             layer.setGlobalAlpha(0.75);
@@ -362,7 +362,7 @@ gv.Map = new JS.Class('Map', myt.View, {
             var orbitCx = offsetX + strongestForceMob.x * scale,
                 orbitCy = offsetY + strongestForceMob.y * scale,
                 orbitR = distance * scale;
-            self._drawCircle(layer, orbitCx, orbitCy, orbitR);
+            self._drawCircle(layer, orbitCx, orbitCy, orbitR, false);
             layer.setStrokeStyle('#ffffff');
             layer.setGlobalAlpha(0.33);
             layer.stroke();
@@ -590,7 +590,7 @@ gv.Map = new JS.Class('Map', myt.View, {
     },
     
     /** @private */
-    _drawCircle: function(layer, x, y, r) {
+    _drawCircle: function(layer, x, y, r, filled) {
         layer.beginPath();
         
         if (r > 50000) {
@@ -600,15 +600,19 @@ gv.Map = new JS.Class('Map', myt.View, {
                 pt, px, py, angle;
             if (GV.circleContainsCircle(x, y, r, halfMapSize, halfMapSize, mapSize)) {
                 // Draw a rect when the circle contains the viewport
-                layer.rect(0, 0, mapSize, mapSize);
+                if (filled) layer.rect(0, 0, mapSize, mapSize);
             } else {
                 // Draw large circles as a poly to prevent jitter
                 pt = GV.getClosestPointOnACircleToAPoint(x, y, r, halfMapSize, halfMapSize);
                 angle = Math.atan2(halfMapSize - y, halfMapSize - x) + GV.HALF_PI;
                 px = pt.x;
                 py = pt.y;
-                layer.moveTo(x, y);
-                layer.lineTo(px + 8192 * Math.cos(angle), py + 8192 * Math.sin(angle));
+                if (filled) {
+                    layer.moveTo(x, y);
+                    layer.lineTo(px + 8192 * Math.cos(angle), py + 8192 * Math.sin(angle));
+                } else {
+                    layer.moveTo(px + 8192 * Math.cos(angle), py + 8192 * Math.sin(angle));
+                }
                 angle += Math.PI;
                 layer.lineTo(px + 8192 * Math.cos(angle), py + 8192 * Math.sin(angle));
             }

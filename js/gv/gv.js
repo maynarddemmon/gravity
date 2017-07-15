@@ -23,11 +23,12 @@
  */
 /*
     TODO:
-        - Handle destruction of the player ship (respawn?)
+        - Respawn dock.
+        - Show a dialog with info when ship is destroyed.
         
+        - Elapsed time indicator.
         - Draw scale markers on the map
         - Some kind of rotational thrust indicator
-        - Elapsed time indicator.
         - Color relative velocity when it's near orbit velocity
         
         - Multiple selected mobs.
@@ -46,7 +47,6 @@
         - Cargo
         - Life Support (water, air, food, radiation)
         - Hull
-        
 */
 gv = (function() {
     var timeSlicesPerSecond = 60,
