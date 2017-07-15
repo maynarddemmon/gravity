@@ -9,23 +9,59 @@
 gv.Spacetime = new JS.Class('Spacetime', myt.Eventable, {
     // Life Cycle //////////////////////////////////////////////////////////////
     init: function(attrs) {
-        this.running = false;
+        var self = this;
         
-        this._mobs = [];
-        this._reactOnlyMobs = [];
-        this._allMobs = [];
-        this._mobsById = {};
-        this._childMobs = [];
+        self.running = false;
         
-        this._collisionCheckCount = 0;
+        self._mobs = [];
+        self._reactOnlyMobs = [];
+        self._allMobs = [];
+        self._mobsById = {};
+        self._childMobs = [];
         
-        this.callSuper(attrs);
+        self._collisionCheckCount = 0;
+        
+        self._wholeSeconds = -1;
+        self._years = self._days = self._hours = self._minutes = self._seconds = 0;
+        
+        self.callSuper(attrs);
     },
     
     
     // Accessors ///////////////////////////////////////////////////////////////
     setRunning: function(v) {this.set('running', v, true);},
     isRunning: function() {return this.running;},
+    
+    incrementElapsedTime: function(v) {
+        var self = this,
+            years, days, hours, minutes, seconds,
+            existingWholeSeconds = self._wholeSeconds;
+        
+        self._wholeSeconds = Math.floor(seconds = self._seconds += v);
+        if (self._wholeSeconds > existingWholeSeconds) {
+            if (seconds >= 60) {
+                minutes = self._minutes += Math.floor(seconds / 60);
+                self._wholeSeconds = Math.floor(self._seconds = seconds % 60);
+                
+                if (minutes >= 60) {
+                    hours = self._hours += Math.floor(minutes / 60);
+                    self._minutes = minutes % 60;
+                    
+                    if (hours >= 24) {
+                        days = self._days += Math.floor(hours / 24);
+                        self._hours = hours % 24;
+                        
+                        if (days >= 365) {
+                            years = self._years += Math.floor(days / 365);
+                            self._days = days % 365;
+                        }
+                    }
+                }
+            }
+            
+            gv.app.updateElapsedTime(self._years, self._days, self._hours, self._minutes, self._wholeSeconds);
+        }
+    },
     
     
     // Methods /////////////////////////////////////////////////////////////////
@@ -223,5 +259,7 @@ gv.Spacetime = new JS.Class('Spacetime', myt.Eventable, {
         childMobs = self._childMobs;
         i = childMobs.length;
         while (i) childMobs[--i].updateChildMob();
+        
+        self.incrementElapsedTime(dt);
     }
 });

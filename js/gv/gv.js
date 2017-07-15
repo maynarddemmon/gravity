@@ -26,7 +26,6 @@
         - Respawn dock.
         - Show a dialog with info when ship is destroyed.
         
-        - Elapsed time indicator.
         - Draw scale markers on the map
         - Some kind of rotational thrust indicator
         - Color relative velocity when it's near orbit velocity
@@ -261,6 +260,16 @@ gv = (function() {
     gv.FA_PLAY = func(['play']);
     gv.FA_PAUSE= func(['pause']);
 })(gv);
+
+gv.Row = new JS.Class('Row', myt.View, {
+    // Life Cycle //////////////////////////////////////////////////////////////
+    initNode: function(parent, attrs) {
+        this.callSuper(parent, attrs);
+        
+        new myt.SpacedLayout(this, {inset:5, spacing:2});
+        new myt.AlignedLayout(this, {axis:'y', collapseParent:true});
+    }
+});
 
 gv.Text = new JS.Class('Text', myt.Text, {
     // Life Cycle //////////////////////////////////////////////////////////////

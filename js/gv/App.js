@@ -22,7 +22,9 @@ gv.App = new JS.Class('App', myt.View, {
             M = myt,
             g = myt.global,
             GV = gv,
-            T = GV.Text;
+            T = GV.Text,
+            ROW = GV.Row,
+            row;
         
         // How many seconds occur in the simulation during one time slice. Will
         // be updated when the time slider gets set via this.updateTimeScaling.
@@ -49,15 +51,21 @@ gv.App = new JS.Class('App', myt.View, {
         // Controls
         var rightPanel = this._rightPanel = new M.View(self, {bgColor:'#003300', overflow:'auto'});
         
-        self._playBtn = new GV.CircleButton(rightPanel, {x:5, y:5, text:GV.FA_PLAY, fontSize:'11px'}, [{
+        row = new ROW(rightPanel);
+        
+        self._elapsedTimeLabel = new T(row);
+        
+        row = new ROW(rightPanel);
+        
+        self._playBtn = new GV.CircleButton(row, {text:GV.FA_PLAY, fontSize:'11px'}, [{
             doActivated: function() {spacetime.start();}
         }]);
         
-        self._pauseBtn = new GV.CircleButton(rightPanel, {x:28, y:5, text:GV.FA_PAUSE, fontSize:'11px'}, [{
+        self._pauseBtn = new GV.CircleButton(row, {text:GV.FA_PAUSE, fontSize:'11px'}, [{
             doActivated: function() {spacetime.stop();}
         }]);
         
-        self.timescaleSlider = new GV.Slider(rightPanel, {x:51, y:5, width:194, value:0, minValue:0, maxValue:25}, [{
+        self.timescaleSlider = new GV.Slider(row, {width:194, value:0, minValue:0, maxValue:25}, [{
             setValue: function(v) {
                 this.callSuper(v);
                 
@@ -105,11 +113,21 @@ gv.App = new JS.Class('App', myt.View, {
             setToRealtime: function() {this.setValue(0);}
         }]);
         
-        self._scaleLabel = new T(rightPanel, {x:5, y:28});
-        self._shipThrustLabel = new T(rightPanel, {x:5, y:40});
-        self._shipStrafeLabel = new T(rightPanel, {x:5, y:52});
+        row = new ROW(rightPanel);
         
-        self._dockStatusBtn = new GV.CenteredButton(rightPanel, {x:5, y:64, width:110, focusable:false}, [{
+        self._scaleLabel = new T(row);
+        
+        row = new ROW(rightPanel);
+        
+        self._shipThrustLabel = new T(row);
+        
+        row = new ROW(rightPanel);
+        
+        self._shipStrafeLabel = new T(row);
+        
+        row = new ROW(rightPanel);
+        
+        self._dockStatusBtn = new GV.CenteredButton(row, {width:110, focusable:false}, [{
             doActivated: function() {
                 var ship = self.getPlayerShip();
                 if (ship) {
@@ -127,9 +145,11 @@ gv.App = new JS.Class('App', myt.View, {
                 }
             }
         }]);
-        self._dockStatusLabel = new T(rightPanel, {x:120, y:68});
+        self._dockStatusLabel = new T(row);
         
-        self._landingGearStatusBtn = new GV.CenteredButton(rightPanel, {x:5, y:84, width:170, focusable:false}, [{
+        row = new ROW(rightPanel);
+        
+        self._landingGearStatusBtn = new GV.CenteredButton(row, {width:170, focusable:false}, [{
             doActivated: function() {
                 var ship = self.getPlayerShip();
                 if (ship) {
@@ -147,7 +167,9 @@ gv.App = new JS.Class('App', myt.View, {
                 }
             }
         }]);
-        self._landingGearStatusLabel = new T(rightPanel, {x:180, y:88});
+        self._landingGearStatusLabel = new T(row);
+        
+        new M.SpacedLayout(rightPanel, {axis:'y', inset:5, spacing:2});
         
         self._updateSize();
         self.focus();
@@ -234,6 +256,16 @@ gv.App = new JS.Class('App', myt.View, {
         this._pauseBtn.setDisabled(notRunning);
         this._dockStatusBtn.setDisabled(notRunning);
         this._landingGearStatusBtn.setDisabled(notRunning);
+    },
+    
+    updateElapsedTime: function(years, days, hours, minutes, seconds) {
+        this._elapsedTimeLabel.setText(
+            'Years:' + years + 
+            ' Days:' + days + 
+            ' Time:' + (hours < 10 ? '0' : '') + hours + 
+            ':' + (minutes < 10 ? '0' : '') + minutes + 
+            ':' + (seconds < 10 ? '0' : '') + seconds
+        );
     },
     
     updateScaleLabel: function() {
